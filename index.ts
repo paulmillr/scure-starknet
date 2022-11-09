@@ -23,10 +23,10 @@ export const CURVE = Object.freeze({
 });
 
 /**
- * y² = x³ + ax + b: Short weistrass curve formula
+ * y² = x³ + ax + b: Short weierstrass curve formula
  * @returns y²
  */
-function weistrass(x: bigint): bigint {
+function weierstrass(x: bigint): bigint {
   const { a, b } = CURVE;
   const x2 = mod(x * x);
   const x3 = mod(x2 * x);
@@ -431,7 +431,7 @@ export class Point {
     const { x, y } = this;
     if (!isValidFieldElement(x) || !isValidFieldElement(y)) throw new Error(msg);
     const left = mod(y * y);
-    const right = weistrass(x);
+    const right = weierstrass(x);
     if (mod(left - right) !== 0n) throw new Error(msg);
   }
 
@@ -1258,7 +1258,7 @@ function pedersenArg(arg: PedersenArg): bigint {
   if (typeof arg === 'number') return BigInt(arg);
   return normalizeScalar(bytesToNumber(ensureBytes(arg)));
 }
-function pedersenSignle(point: JacobianPoint, value: PedersenArg, constants: JacobianPoint[]) {
+function pedersenSingle(point: JacobianPoint, value: PedersenArg, constants: JacobianPoint[]) {
   let x = pedersenArg(value);
   if (x < 0 || x >= CURVE.n) throw new Error('Invalid input');
   for (let j = 0; j < 252; j++) {
@@ -1291,8 +1291,8 @@ function pedersenSignle(point: JacobianPoint, value: PedersenArg, constants: Jac
 // shift_point + x_low * P_0 + x_high * P1 + y_low * P2  + y_high * P3
 export function pedersen(x: PedersenArg, y: PedersenArg) {
   let point: JacobianPoint = PEDERSEN_POINTS_JACOBIAN[0];
-  point = pedersenSignle(point, x, PEDERSEN_POINTS1);
-  point = pedersenSignle(point, y, PEDERSEN_POINTS2);
+  point = pedersenSingle(point, x, PEDERSEN_POINTS1);
+  point = pedersenSingle(point, y, PEDERSEN_POINTS2);
   // point = pedersenSingleFast(point, x, 1, 2);
   // point = pedersenSingleFast(point, y, 3, 4);
   return point.toAffine().toHexX().replace(/^0+/gm, '');
