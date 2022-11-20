@@ -1254,13 +1254,17 @@ const PEDERSEN_POINTS2 = pedersenPrecompute(
 
 type PedersenArg = Hex | bigint | number;
 function pedersenArg(arg: PedersenArg): bigint {
-  if (typeof arg === 'bigint') return arg;
-  if (typeof arg === 'number') return BigInt(arg);
-  return normalizeScalar(bytesToNumber(ensureBytes(arg)));
+  let value: bigint;
+  if (typeof arg === 'bigint') value = arg;
+  else if (typeof arg === 'number') value = BigInt(arg);
+  else value = bytesToNumber(ensureBytes(arg));
+  if (0n > value || value >= CURVE.P)
+    throw new Error(`PedersenArg should be 0<=ARG<CURVE.P: ${value}`);
+  return value;
 }
+
 function pedersenSingle(point: JacobianPoint, value: PedersenArg, constants: JacobianPoint[]) {
   let x = pedersenArg(value);
-  if (x < 0 || x >= CURVE.n) throw new Error('Invalid input');
   for (let j = 0; j < 252; j++) {
     const pt = constants[j];
     if (pt.x === point.x) throw new Error('Same point');

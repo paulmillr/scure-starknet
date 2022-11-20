@@ -1,6 +1,7 @@
 import { deepStrictEqual, throws } from 'assert';
 import { should } from 'micro-should';
 import * as starknet from '../index.js';
+import { default as issue2 } from './fixtures/issue2.json' assert { type: 'json' };
 
 should('Basic elliptic sanity check', () => {
   const g1 = starknet.Point.BASE;
@@ -70,6 +71,44 @@ should('Hash chain', () => {
     starknet.hashChain([1, 2, 3]),
     '5d9d62d4040b977c3f8d2389d494e4e89a96a8b45c44b1368f1cc6ec5418915'
   );
+});
+
+should('Pedersen hash edgecases', () => {
+  // >>> pedersen_hash(0,0)
+  // 2089986280348253421170679821480865132823066470938446095505822317253594081284
+  const zero =
+    2089986280348253421170679821480865132823066470938446095505822317253594081284n.toString(16);
+  deepStrictEqual(starknet.pedersen(0, 0), zero);
+  deepStrictEqual(starknet.pedersen(0n, 0n), zero);
+  deepStrictEqual(starknet.pedersen('0', '0'), zero);
+  deepStrictEqual(starknet.pedersen('0x0', '0x0'), zero);
+  // >>> pedersen_hash(3618502788666131213697322783095070105623107215331596699973092056135872020475,3618502788666131213697322783095070105623107215331596699973092056135872020475)
+  // 3226051580231087455100099637526672350308978851161639703631919449959447036451
+  const big = 3618502788666131213697322783095070105623107215331596699973092056135872020475n;
+  const bigExp =
+    3226051580231087455100099637526672350308978851161639703631919449959447036451n.toString(16);
+  deepStrictEqual(starknet.pedersen(big, big), bigExp);
+  // >= FIELD
+  const big2 = 36185027886661312136973227830950701056231072153315966999730920561358720204751n;
+  throws(() => starknet.pedersen(big2, big2), 'big2');
+
+  // FIELD -1
+  const big3 = 3618502788666131213697322783095070105623107215331596699973092056135872020480n;
+  const big3exp =
+    3232555749487190471763097992898089327242482272407513295348046886353176778606n.toString(16);
+  deepStrictEqual(starknet.pedersen(big3, big3), big3exp, 'big3');
+  // FIELD
+  const big4 = 3618502788666131213697322783095070105623107215331596699973092056135872020481n;
+  throws(() => starknet.pedersen(big4, big4), 'big4');
+  throws(() => starknet.pedersen(-1, -1), 'neg');
+});
+
+should('Pedersen hash, issue #2', () => {
+  const hexData = issue2;
+  // Verified with starnet.js
+  const exp = '22064462ea33a6ce5272a295e0f551c5da3834f80d8444e7a4df68190b1bc42';
+  const value = [...hexData, hexData.length].reduce((x, y) => starknet.pedersen(x, y), 0);
+  deepStrictEqual(value, exp);
 });
 
 import * as bip32 from '@scure/bip32';
