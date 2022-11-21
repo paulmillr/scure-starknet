@@ -1,6 +1,6 @@
 # micro-starknet
 
-Minimal implementation of [Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html).
+Minimal implementation of [Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html) including Pedersen and Stark Curve.
 
 ## Usage
 
