@@ -164,14 +164,14 @@ should('Pedersen', () => {
       '0x3d937c035c878245caf64531a5756109c53068da139362728feb561405371cb',
       '0x208a0a10250e382e1e4bbe2880906c2791bf6275695e02fbbc6aeff9cd8b31a'
     ),
-    '30e480bed5fe53fa909cc0f8c4d99b8f9f2c016be4c41e13a4848797979c662'
+    '0x30e480bed5fe53fa909cc0f8c4d99b8f9f2c016be4c41e13a4848797979c662'
   );
   deepStrictEqual(
     starknet.pedersen(
       '0x58f580910a6ca59b28927c08fe6c43e2e303ca384badc365795fc645d479d45',
       '0x78734f65a067be9bdb39de18434d71e79f7b6466a4b66bbd979ab9e7515fe0b'
     ),
-    '68cc0b76cddd1dd4ed2301ada9b7c872b23875d5ff837b3a87993e0d9996b87'
+    '0x68cc0b76cddd1dd4ed2301ada9b7c872b23875d5ff837b3a87993e0d9996b87'
   );
 });
 
@@ -241,6 +241,41 @@ should('Key derivation', () => {
     deepStrictEqual(realPath, path);
     deepStrictEqual(starknet.grindKey(hd.derive(realPath).privateKey), privateKey);
   }
+});
+
+// Verified against starknet.js
+should('Starknet.js cross-tests', () => {
+  const privateKey = '0x019800ea6a9a73f94aee6a3d2edf018fc770443e90c7ba121e8303ec6b349279';
+  // NOTE: there is no compressed keys here, getPubKey returns stark-key (which is schnorr-like X coordinate)
+  // But it is not used in signing/verifying
+  deepStrictEqual(
+    starknet.getStarkKey(privateKey),
+    '0x33f45f07e1bd1a51b45fc24ec8c8c9908db9e42191be9e169bfcac0c0d99745'
+  );
+  const msgHash = '0x6d1706bd3d1ba7c517be2a2a335996f63d4738e2f182144d078a1dd9997062e';
+  const sig = starknet.sign(msgHash, privateKey);
+  const { r, s } = starknet.Signature.fromHex(sig);
+
+  deepStrictEqual(
+    r.toString(),
+    '1427981024487605678086498726488552139932400435436186597196374630267616399345'
+  );
+  deepStrictEqual(
+    s.toString(),
+    '1853664302719670721837677288395394946745467311923401353018029119631574115563'
+  );
+  const hashMsg2 = starknet.pedersen(
+    '0x33f45f07e1bd1a51b45fc24ec8c8c9908db9e42191be9e169bfcac0c0d99745',
+    '1'
+  );
+  deepStrictEqual(hashMsg2, '0x2b0d4d43acce8ff68416f667f92ec7eab2b96f1d2224abd4d9d4d1e7fa4bb00');
+  const pubKey =
+    '04033f45f07e1bd1a51b45fc24ec8c8c9908db9e42191be9e169bfcac0c0d997450319d0f53f6ca077c4fa5207819144a2a4165daef6ee47a7c1d06c0dcaa3e456';
+  const sig2 = new starknet.Signature(
+    558858382392827003930138586379728730695763862039474863361948210004201119180n,
+    2440689354481625417078677634625227600823892606910345662891037256374285369343n
+  );
+  deepStrictEqual(starknet.verify(sig2.toHex(), hashMsg2, pubKey), true);
 });
 
 // ESM is broken.

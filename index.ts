@@ -10,6 +10,7 @@ export const CURVE = Object.freeze({
   a: 1n,
   b: 3141592653589793238462643383279502884197169399375105820974944592307816406665n,
   // Field over which we'll do calculations. Verify with:
+  // NOTE: there is no efficient sqrt for field (P%4==1)
   P: 2n ** 251n + 17n * 2n ** 192n + 1n,
   // Curve order, total count of valid points in the field. Verify with:
   n: 3618502788666131213697322783095070105526743751716087489154079457884512865583n,
@@ -38,7 +39,7 @@ type Bytes = Uint8Array;
 type Hex = Uint8Array | string;
 // Very few implementations accept numbers, we do it to ease learning curve
 type PrivKey = Hex | bigint | number;
-// 33/65-byte ECDSA key, or 32-byte Schnorr key - not interchangeable
+// 33/65-byte ECDSA key
 type PubKey = Hex | Point;
 // ECDSA signature
 type Sig = Hex | Signature;
@@ -342,7 +343,6 @@ export class Point {
     return this.y % 2n === 0n;
   }
 
-  // Schnorr doesn't support uncompressed points, so this is only for ECDSA
   private static fromUncompressedHex(bytes: Uint8Array) {
     const x = bytesToNumber(bytes.subarray(1, 33));
     const y = bytesToNumber(bytes.subarray(33, 65));
@@ -350,17 +350,15 @@ export class Point {
     point.assertValidity();
     return point;
   }
-
   /**
    * Converts hash string or Uint8Array to Point.
-   * @param hex 32-byte (schnorr) or 33/65-byte (ECDSA) hex
+   * @param hex 33/65-byte (ECDSA) hex
    */
   static fromHex(hex: Hex): Point {
     const bytes = ensureBytes(hex);
     const len = bytes.length;
     const header = bytes[0];
     // this.assertValidity() is done inside of those two functions
-
     if (len === 65 && header === 0x04) return this.fromUncompressedHex(bytes);
     throw new Error(
       `Point.fromHex: received invalid point. Expected 32-33 compressed bytes or 65 uncompressed bytes, not ${len}`
@@ -402,27 +400,20 @@ export class Point {
     return Q;
   }
 
-  toRawBytes(isCompressed = false): Uint8Array {
-    return hexToBytes(this.toHex(isCompressed));
+  toRawBytes(): Uint8Array {
+    return hexToBytes(this.toHex());
   }
 
-  toHex(isCompressed = false): string {
-    const x = numTo32bStr(this.x);
-    if (isCompressed) {
-      const prefix = this.hasEvenY() ? '02' : '03';
-      return `${prefix}${x}`;
-    } else {
-      return `04${x}${numTo32bStr(this.y)}`;
-    }
+  toHex(): string {
+    return `04${numTo32bStr(this.x)}${numTo32bStr(this.y)}`;
   }
 
-  // Schnorr-related function
   toHexX() {
-    return this.toHex(true).slice(2);
+    return numTo32bStr(this.x);
   }
 
   toRawX() {
-    return this.toRawBytes(true).slice(1);
+    return hexToBytes(this.toHexX());
   }
 
   // A point on curve is valid if it conforms to equation.
@@ -627,10 +618,8 @@ function bytesToHex(uint8a: Uint8Array): string {
 }
 
 const stripLeadingZeros = (s: string) => s.replace(/^0+/gm, '');
-
-function bytesToHexEth(uint8a: Uint8Array): string {
-  return `0x${stripLeadingZeros(bytesToHex(uint8a))}`;
-}
+const bytesToHexEth = (uint8a: Uint8Array): string => `0x${stripLeadingZeros(bytesToHex(uint8a))}`;
+const numberToHexEth = (num: bigint | number) => `0x${num.toString(16)}`;
 
 const POW_2_256 = BigInt('0x10000000000000000000000000000000000000000000000000000000000000000');
 function numTo32bStr(num: bigint): string {
@@ -802,6 +791,7 @@ const hmacSha256Sync: HmacFnSync = (key, ...msgs) => {
 
 export const utils = {
   bytesToHex,
+  bytesToHexEth,
   hexToBytes,
   concatBytes,
   mod,
@@ -974,11 +964,10 @@ function normalizeSignature(signature: Sig): Signature {
 /**
  * Computes public key for secp256k1 private key.
  * @param privateKey 32-byte private key
- * @param isCompressed whether to return compact (33-byte), or full (65-byte) key
- * @returns Public key, full by default; short when isCompressed=true
+ * @returns Public key, full (65-byte)
  */
-export function getPublicKey(privateKey: PrivKey, isCompressed = false): Uint8Array {
-  return Point.fromPrivateKey(privateKey).toRawBytes(isCompressed);
+export function getPublicKey(privateKey: PrivKey): Bytes {
+  return Point.fromPrivateKey(privateKey).toRawBytes();
 }
 
 /**
@@ -986,16 +975,10 @@ export function getPublicKey(privateKey: PrivKey, isCompressed = false): Uint8Ar
  * @param msgHash message hash
  * @param signature DER or compact sig
  * @param recovery 0 or 1
- * @param isCompressed whether to return compact (33-byte), or full (65-byte) key
- * @returns Public key, full by default; short when isCompressed=true
+ * @returns Public key (uncompressed)
  */
-export function recoverPublicKey(
-  msgHash: Hex,
-  signature: Sig,
-  recovery: number,
-  isCompressed = false
-): Uint8Array {
-  return Point.fromSignature(msgHash, signature, recovery).toRawBytes(isCompressed);
+export function recoverPublicKey(msgHash: Hex, signature: Sig, recovery: number): Uint8Array {
+  return Point.fromSignature(msgHash, signature, recovery).toRawBytes();
 }
 
 /**
@@ -1017,19 +1000,14 @@ function isProbPub(item: PrivKey | PubKey): boolean {
  * 2. Checks for the public key of being on-curve
  * @param privateA private key
  * @param publicB different public key
- * @param isCompressed whether to return compact (33-byte), or full (65-byte) key
  * @returns shared public key
  */
-export function getSharedSecret(
-  privateA: PrivKey,
-  publicB: PubKey,
-  isCompressed = false
-): Uint8Array {
+export function getSharedSecret(privateA: PrivKey, publicB: PubKey): Uint8Array {
   if (isProbPub(privateA)) throw new TypeError('getSharedSecret: first arg must be private key');
   if (!isProbPub(publicB)) throw new TypeError('getSharedSecret: second arg must be public key');
   const b = normalizePublicKey(publicB);
   b.assertValidity();
-  return b.multiply(normalizePrivateKey(privateA)).toRawBytes(isCompressed);
+  return b.multiply(normalizePrivateKey(privateA)).toRawBytes();
 }
 
 type Entropy = Hex | true;
@@ -1256,8 +1234,11 @@ type PedersenArg = Hex | bigint | number;
 function pedersenArg(arg: PedersenArg): bigint {
   let value: bigint;
   if (typeof arg === 'bigint') value = arg;
-  else if (typeof arg === 'number') value = BigInt(arg);
-  else value = bytesToNumber(ensureBytes(arg));
+  else if (typeof arg === 'number') {
+    if (!Number.isSafeInteger(arg)) throw new Error(`Invalid pedersenArg: ${arg}`);
+    value = BigInt(arg);
+  } else value = bytesToNumber(ensureBytes(arg));
+  // [0..Fp)
   if (0n > value || value >= CURVE.P)
     throw new Error(`PedersenArg should be 0<=ARG<CURVE.P: ${value}`);
   return value;
@@ -1274,24 +1255,6 @@ function pedersenSingle(point: JacobianPoint, value: PedersenArg, constants: Jac
   return point;
 }
 
-// Takes 60ms to precompute, but:
-// FAST: pedersenHash (micro-starkex) x 1,106 ops/sec @ 903μs/op ± 53.08% (min: 636μs, max: 61ms)
-// SINGLE: pedersenHash (micro-starkex) x 897 ops/sec @ 1ms/op
-// const MASK_248 = 2n ** 248n - 1n;
-// function pedersenSingleFast(point: JacobianPoint, value: PedersenArg, P1: number, P2: number) {
-//   const x = pedersenArg(value);
-//   const P1A = PEDERSEN_POINTS[P1];
-//   const P1J = PEDERSEN_POINTS_JACOBIAN[P1];
-//   const P2A = PEDERSEN_POINTS[P2];
-//   const P2J = PEDERSEN_POINTS_JACOBIAN[P2];
-//   const low = x & MASK_248;
-//   if (low) point = point.add(P1J.multiply(low, P1A));
-//   const high = x >> 248n;
-//   if (high) point = point.add(P2J.multiply(high, P2A));
-//   return point;
-// }
-
-// TODO: we can significantly speedup this, if we do precomputed windows
 // shift_point + x_low * P_0 + x_high * P1 + y_low * P2  + y_high * P3
 export function pedersen(x: PedersenArg, y: PedersenArg) {
   let point: JacobianPoint = PEDERSEN_POINTS_JACOBIAN[0];
@@ -1299,14 +1262,20 @@ export function pedersen(x: PedersenArg, y: PedersenArg) {
   point = pedersenSingle(point, y, PEDERSEN_POINTS2);
   // point = pedersenSingleFast(point, x, 1, 2);
   // point = pedersenSingleFast(point, y, 3, 4);
-  return point.toAffine().toHexX().replace(/^0+/gm, '');
+  return bytesToHexEth(point.toAffine().toRawX());
 }
 
-export function hashChain(data: Hex[], fn = pedersen) {
+export function hashChain(data: PedersenArg[], fn = pedersen) {
+  if (!Array.isArray(data) || data.length < 1)
+    throw new Error('data should be array of at least 1 element');
+  if (data.length === 1) return numberToHexEth(pedersenArg(data[0]));
   return Array.from(data)
     .reverse()
     .reduce((acc, i) => fn(i, acc));
 }
+// Same as hashChain, but computes hash even for single element and order is not revesed
+export const computeHashOnElements = (data: PedersenArg[], fn = pedersen) =>
+  [0, ...data, data.length].reduce((x, y) => fn(x, y));
 
 const MASK_250 = 2n ** 250n - 1n;
 export const keccak = (data: Bytes) => bytesToNumber(keccak_256(data)) & MASK_250;

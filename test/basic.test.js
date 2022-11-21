@@ -54,30 +54,28 @@ should('Basic elliptic sanity check', () => {
 should('Pedersen', () => {
   deepStrictEqual(
     starknet.pedersen(2, 3),
-    '5774fa77b3d843ae9167abd61cf80365a9b2b02218fc2f628494b5bdc9b33b8'
+    '0x5774fa77b3d843ae9167abd61cf80365a9b2b02218fc2f628494b5bdc9b33b8'
   );
   deepStrictEqual(
     starknet.pedersen(1, 2),
-    '5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026'
+    '0x5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026'
   );
   deepStrictEqual(
     starknet.pedersen(3, 4),
-    '262697b88544f733e5c6907c3e1763131e9f14c51ee7951258abbfb29415fbf'
+    '0x262697b88544f733e5c6907c3e1763131e9f14c51ee7951258abbfb29415fbf'
   );
 });
 
 should('Hash chain', () => {
   deepStrictEqual(
     starknet.hashChain([1, 2, 3]),
-    '5d9d62d4040b977c3f8d2389d494e4e89a96a8b45c44b1368f1cc6ec5418915'
+    '0x5d9d62d4040b977c3f8d2389d494e4e89a96a8b45c44b1368f1cc6ec5418915'
   );
 });
 
 should('Pedersen hash edgecases', () => {
   // >>> pedersen_hash(0,0)
-  // 2089986280348253421170679821480865132823066470938446095505822317253594081284
-  const zero =
-    2089986280348253421170679821480865132823066470938446095505822317253594081284n.toString(16);
+  const zero = '0x49ee3eba8c1600700ee1b87eb599f16716b0b1022947733551fde4050ca6804';
   deepStrictEqual(starknet.pedersen(0, 0), zero);
   deepStrictEqual(starknet.pedersen(0n, 0n), zero);
   deepStrictEqual(starknet.pedersen('0', '0'), zero);
@@ -85,8 +83,7 @@ should('Pedersen hash edgecases', () => {
   // >>> pedersen_hash(3618502788666131213697322783095070105623107215331596699973092056135872020475,3618502788666131213697322783095070105623107215331596699973092056135872020475)
   // 3226051580231087455100099637526672350308978851161639703631919449959447036451
   const big = 3618502788666131213697322783095070105623107215331596699973092056135872020475n;
-  const bigExp =
-    3226051580231087455100099637526672350308978851161639703631919449959447036451n.toString(16);
+  const bigExp = '0x721e167a36655994e88efa865e2ed8a0488d36db4d988fec043cda755728223';
   deepStrictEqual(starknet.pedersen(big, big), bigExp);
   // >= FIELD
   const big2 = 36185027886661312136973227830950701056231072153315966999730920561358720204751n;
@@ -94,21 +91,49 @@ should('Pedersen hash edgecases', () => {
 
   // FIELD -1
   const big3 = 3618502788666131213697322783095070105623107215331596699973092056135872020480n;
-  const big3exp =
-    3232555749487190471763097992898089327242482272407513295348046886353176778606n.toString(16);
+  const big3exp = '0x7258fccaf3371fad51b117471d9d888a1786c5694c3e6099160477b593a576e';
   deepStrictEqual(starknet.pedersen(big3, big3), big3exp, 'big3');
   // FIELD
   const big4 = 3618502788666131213697322783095070105623107215331596699973092056135872020481n;
   throws(() => starknet.pedersen(big4, big4), 'big4');
   throws(() => starknet.pedersen(-1, -1), 'neg');
+  throws(() => starknet.pedersen(false, false), 'false');
+  throws(() => starknet.pedersen(true, true), 'true');
+  throws(() => starknet.pedersen(10.1, 10.1), 'float');
+});
+
+should('hashChain edgecases', () => {
+  deepStrictEqual(starknet.hashChain([32312321312321312312312321n]), '0x1aba6672c014b4838cc201');
+  deepStrictEqual(
+    starknet.hashChain([1n, 2n]),
+    '0x5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026'
+  );
+  deepStrictEqual(
+    starknet.hashChain([1, 2]),
+    '0x5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026'
+  );
+  throws(() => starknet.hashChain([]));
+  throws(() => starknet.hashChain('123'));
+  deepStrictEqual(
+    starknet.hashChain([1, 2]),
+    '0x5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026'
+  );
 });
 
 should('Pedersen hash, issue #2', () => {
-  const hexData = issue2;
   // Verified with starnet.js
-  const exp = '22064462ea33a6ce5272a295e0f551c5da3834f80d8444e7a4df68190b1bc42';
-  const value = [...hexData, hexData.length].reduce((x, y) => starknet.pedersen(x, y), 0);
-  deepStrictEqual(value, exp);
+  deepStrictEqual(
+    starknet.computeHashOnElements(issue2),
+    '0x22064462ea33a6ce5272a295e0f551c5da3834f80d8444e7a4df68190b1bc42'
+  );
+  deepStrictEqual(
+    starknet.computeHashOnElements([]),
+    '0x49ee3eba8c1600700ee1b87eb599f16716b0b1022947733551fde4050ca6804'
+  );
+  deepStrictEqual(
+    starknet.computeHashOnElements([1]),
+    '0x78d74f61aeaa8286418fd34b3a12a610445eba11d00ecc82ecac2542d55f7a4'
+  );
 });
 
 import * as bip32 from '@scure/bip32';
