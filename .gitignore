@@ -1,5 +1,6 @@
 build/
 node_modules/
-types/
-esm/
-cjs/
+/lib/**/*.js
+/lib/**/*.js.map
+/lib/**/*.ts
+/lib/**/*.d.ts.map
