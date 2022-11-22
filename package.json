@@ -39,7 +39,7 @@
     "build": "npm run build:esm && npm run build:cjs",
     "build:esm": "tsc --module es2020 --outDir esm --mapRoot esm",
     "build:cjs": "tsc --module commonjs --outDir cjs --mapRoot cjs",
-    "postinstall": "npm run build",
+    "postinstall": "npm run build || exit 0",
     "lint": "prettier --check index.ts",
     "test": "node test/index.test.js"
   },
