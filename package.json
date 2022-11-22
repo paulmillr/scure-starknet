@@ -3,15 +3,19 @@
   "version": "0.1.0",
   "description": "Minimal implementation of Starknet cryptography including Pedersen and Stark Curve",
   "files": [
-    "index.js",
-    "index.d.ts",
-    "index.d.ts.map",
+    "cjs",
+    "esm",
+    "types",
     "index.ts"
   ],
-  "type": "module",
-  "main": "index.js",
-  "module": "index.js",
-  "types": "index.d.ts",
+  "main": "esm/index.js",
+  "module": "esm/index.js",
+  "types": "types/index.d.ts",
+  "exports": {
+    "import": "./esm/index.js",
+    "require": "./cjs/index.js",
+    "default": "./esm/index.js"
+  },
   "dependencies": {
     "@noble/hashes": "~1.1.1"
   },
@@ -20,6 +24,7 @@
     "@scure/bip32": "^1.1.1",
     "@scure/bip39": "^1.1.0",
     "@types/node": "18.11.3",
+    "concurrently": "^7.6.0",
     "micro-should": "0.2.0",
     "prettier": "2.6.2",
     "typescript": "4.7.3"
@@ -32,7 +37,10 @@
     "url": "git+https://github.com/paulmillr/micro-starknet.git"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "concurrently \"npm:build:esm\" \"npm:build:cjs\"",
+    "build:esm": "tsc --module es2020 --outDir esm --mapRoot esm",
+    "build:cjs": "tsc --module commonjs --outDir cjs --mapRoot cjs",
+    "postinstall": "npm run build",
     "lint": "prettier --check index.ts",
     "test": "node test/index.test.js"
   },
