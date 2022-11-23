@@ -5,7 +5,7 @@ Minimal implementation of [Starknet cryptography](https://docs.starkware.co/star
 ## Usage
 
 ```sh
-npm install github:paulmillr/micro-starknet
+npm install micro-starknet
 ```
 
 ```ts
