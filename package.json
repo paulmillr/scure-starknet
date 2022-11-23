@@ -44,7 +44,7 @@
     "build:cjs": "tsc --module commonjs --outDir lib",
     "postinstall": "npm run build || exit 0",
     "lint": "prettier --check index.ts",
-    "test": "node test/index.test.js"
+    "test": "node test/index.test.mjs"
   },
   "keywords": [
     "starknet",
