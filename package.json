@@ -3,15 +3,22 @@
   "version": "0.1.0",
   "description": "Minimal implementation of Starknet cryptography including Pedersen and Stark Curve",
   "files": [
-    "index.js",
-    "index.d.ts",
-    "index.d.ts.map",
+    "lib",
     "index.ts"
   ],
-  "type": "module",
-  "main": "index.js",
-  "module": "index.js",
-  "types": "index.d.ts",
+  "main": "lib/index.js",
+  "module": "lib/esm/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/esm/index.js",
+      "default": "./lib/index.js"
+    }
+  },
+  "browser": {
+    "crypto": false
+  },
   "dependencies": {
     "@noble/hashes": "~1.1.1"
   },
@@ -32,7 +39,10 @@
     "url": "git+https://github.com/paulmillr/micro-starknet.git"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc --module es2020 --outDir lib/esm",
+    "build:cjs": "tsc --module commonjs --outDir lib",
+    "postinstall": "npm run build || exit 0",
     "lint": "prettier --check index.ts",
     "test": "node test/index.test.js"
   },

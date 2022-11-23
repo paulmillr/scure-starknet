@@ -1,5 +1,6 @@
 build/
 node_modules/
-/*.js
-/*.d.ts
-/*.d.ts.map
+/lib/**/*.js
+/lib/**/*.js.map
+/lib/**/*.ts
+/lib/**/*.d.ts.map
