@@ -58,6 +58,8 @@ class JacobianPoint {
     if (!(p instanceof Point)) {
       throw new TypeError('JacobianPoint#fromAffine: expected Point');
     }
+    // fromAffine(x:0, y:0) would produce (x:0, y:0, z:1), but we need (x:0, y:1, z:0)
+    if (p.equals(Point.ZERO)) return JacobianPoint.ZERO;
     return new JacobianPoint(p.x, p.y, 1n);
   }
 
@@ -257,15 +259,15 @@ class JacobianPoint {
 
       // Check if we're onto Zero point.
       // Add random point inside current window to f.
+      const offset1 = offset;
+      const offset2 = offset + Math.abs(wbits) - 1;
+      const cond1 = window % 2 !== 0;
+      const cond2 = wbits < 0;
       if (wbits === 0) {
         // The most important part for const-time getPublicKey
-        let pr = precomputes[offset];
-        if (window % 2) pr = pr.negate();
-        f = f.add(pr);
+        f = f.add(constTimeNegate(cond1, precomputes[offset1]));
       } else {
-        let cached = precomputes[offset + Math.abs(wbits) - 1];
-        if (wbits < 0) cached = cached.negate();
-        p = p.add(cached);
+        p = p.add(constTimeNegate(cond2, precomputes[offset2]));
       }
     }
     return { p, f };
@@ -297,17 +299,26 @@ class JacobianPoint {
   // Can accept precomputed Z^-1 - for example, from invertBatch.
   // (x, y, z) ∋ (x=x/z², y=y/z³)
   // http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#scaling-z
-  toAffine(invZ: bigint = invert(this.z)): Point {
+  toAffine(invZ?: bigint): Point {
     const { x, y, z } = this;
+    const is0 = this.equals(JacobianPoint.ZERO);
+    if (invZ == null) invZ = is0 ? 8n : invert(z); // 8 was chosen arbitrarily
     const iz1 = invZ; // A
     const iz2 = mod(iz1 * iz1); // AA = A^2
     const iz3 = mod(iz2 * iz1); // AAA = A^2 * A = A^3
     const ax = mod(x * iz2); // X3 = X1*AA
     const ay = mod(y * iz3); // Y3 = Y1*AA*A
     const zz = mod(z * iz1);
+    if (is0) return Point.ZERO;
     if (zz !== 1n) throw new Error('invZ was invalid');
     return new Point(ax, ay);
   }
+}
+
+// Const-time utility for wNAF
+function constTimeNegate(condition: boolean, item: JacobianPoint) {
+  const neg = item.negate();
+  return condition ? neg : item;
 }
 
 // Stores precomputed values for points.
