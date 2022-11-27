@@ -234,7 +234,7 @@ class JacobianPoint {
 
     // Initialize real and fake points for const-time
     let p = JacobianPoint.ZERO;
-    let f = JacobianPoint.ZERO;
+    let f = JacobianPoint.BASE;
 
     const windows = 1 + CURVE.nBits / W; // W=8 17
     const windowSize = 2 ** (W - 1); // W=8 128
