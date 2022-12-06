@@ -1,6 +1,10 @@
 # micro-starknet
 
-Minimal implementation of [Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html) including Pedersen and Stark Curve.
+**The package has been deprecated and is not supported. Switch to [@noble/curves](https://github.com/paulmillr/noble-curves) instead.
+
+---
+
+>Minimal implementation of [Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html) including Pedersen and Stark Curve.
 
 ## Usage
 
