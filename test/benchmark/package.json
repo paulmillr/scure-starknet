@@ -12,8 +12,10 @@
     "author": "",
     "license": "MIT",
     "devDependencies": {
-        "@starkware-industries/starkware-crypto-utils": "^0.0.2",
-        "micro-bmark": "0.2.0",
-        "micro-should": "0.2.0"
+        "@starkware-industries/starkware-crypto-utils": "^0.0.2"
+    },
+    "dependencies": {
+        "micro-bmark": "^0.3.1",
+        "micro-should": "^0.4.0"
     }
 }
