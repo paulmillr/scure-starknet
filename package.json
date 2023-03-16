@@ -1,6 +1,6 @@
 {
   "name": "micro-starknet",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Minimal implementation of Starknet cryptography including Pedersen and Stark Curve",
   "files": [
     "lib",
