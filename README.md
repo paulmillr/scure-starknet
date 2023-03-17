@@ -1,12 +1,14 @@
 # micro-starknet
 
-Minimal implementation of [Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html) including Pedersen, Poseidon and Stark Curve.
+Minimal implementation of [Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html)
+including [Poseidon hash](https://www.poseidon-hash.info), Pedersen and Stark Curve.
+
+The library utilizes [noble-curves](https://github.com/paulmillr/noble-curves)
+for underlying arithmetics.
 
 ## Usage
 
-```sh
-npm install micro-starknet
-```
+> npm install micro-starknet
 
 ```ts
 import * as starknet from 'micro-starknet';
@@ -14,9 +16,8 @@ import * as starknet from 'micro-starknet';
 
 ### Curve
 
-#### Signing and verification
-
 ```ts
+// Signing and verification
 const privateKey = '2dccce1da22003777062ee0870e9881b460a8b7eca276870f57c601f182136c';
 const publicKey = starknet.getPublicKey(privateKey);
 const messageHash = 'c465dd6b1bbffdb05442eb17f5ca38ad1aa78a6f56bf4415bdee219114a47';
@@ -25,20 +26,14 @@ const { r, s } = starknet.Signature.fromHex(sig);
 deepStrictEqual(r.toString(16), '5f496f6f210b5810b2711c74c15c05244dad43d18ecbbdbe6ed55584bc3b0a2');
 deepStrictEqual(s.toString(16), '4e8657b153787f741a67c0666bad6426c3741b478c8eaa3155196fc571416f3');
 deepStrictEqual(starknet.verify(sig, messageHash, publicKey), true);
-```
 
-#### Private key to StarkKey
-
-```ts
+// Private key to StarkKey
 deepStrictEqual(
   starknet.getStarkKey('0x178047D3869489C055D7EA54C014FFB834A069C9595186ABE04EA4D1223A03F'),
   '0x1895a6a77ae14e7987b9cb51329a5adfb17bd8e7c638f92d6892d76e51cebcf'
 );
-```
 
-### Pedersen hash
-
-```ts
+// Pedersen hash
 deepStrictEqual(
   starknet.pedersen(
     '0x3d937c035c878245caf64531a5756109c53068da139362728feb561405371cb',
@@ -46,11 +41,8 @@ deepStrictEqual(
   ),
   '30e480bed5fe53fa909cc0f8c4d99b8f9f2c016be4c41e13a4848797979c662'
 );
-```
 
-### Create private key from ethereum signature
-
-```ts
+// Create private key from ethereum signature
 const ethSignature =
   '0x21fbf0696d5e0aa2ef41a2b4ffb623bcaf070461d61cf7251c74161f82fec3a43' +
   '70854bc0a34b3ab487c1bc021cd318c734c51ae29374f2beb0e6f2dd49b4bf41c';
@@ -83,29 +75,38 @@ should('Seed derivation (example)', () => {
 });
 ```
 
-### Utils
+### Poseidon
 
-#### Hash chain
+[Poseidon hash](https://www.poseidon-hash.info) can be used in the following way:
 
 ```ts
+type PoseidonFn = ReturnType<typeof poseidon> & {
+    m: number;
+    rate: number;
+    capacity: number;
+};
+function poseidonHash(x: bigint, y: bigint, fn?: PoseidonFn): bigint;
+function poseidonHashFunc(x: Uint8Array, y: Uint8Array, fn?: PoseidonFn): Uint8Array;
+function poseidonHashSingle(x: bigint, fn?: PoseidonFn): bigint;
+function poseidonHashMany(values: bigint[], fn?: PoseidonFn): bigint;
+```
+
+### Utils
+
+```ts
+// Hash chain
 deepStrictEqual(
   starknet.hashChain([1, 2, 3]),
   '5d9d62d4040b977c3f8d2389d494e4e89a96a8b45c44b1368f1cc6ec5418915'
 );
-```
 
-#### Key grinding
-
-```ts
+// Key grinding
 deepStrictEqual(
   starknet.grindKey('86F3E7293141F20A8BAFF320E8EE4ACCB9D4A4BF2B4D295E8CEE784DB46E0519'),
   '5c8c8683596c732541a59e03007b2d30dbbbb873556fe65b5fb63c16688f941'
 );
-```
 
-#### Starknet keccak
-
-```ts
+// Starknet keccak
 deepStrictEqual(
   starknet.keccak(utf8.decode('hello')),
   0x8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8n
