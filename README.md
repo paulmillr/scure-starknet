@@ -113,6 +113,11 @@ deepStrictEqual(
 );
 ```
 
+## Learning
+
+- [SNARK Security and Performance](https://a16zcrypto.com/content/article/snark-security-and-performance/)
+  calculating security level of snarks.
+
 ## Benchmark
 
 Benchmarks measured with Apple M2 on MacOS 13 with node.js 18.10.
