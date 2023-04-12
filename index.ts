@@ -2,7 +2,7 @@
 import { keccak_256 } from '@noble/hashes/sha3';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes } from '@noble/hashes/utils';
-import { Fp, mod, Field, validateField } from '@noble/curves/abstract/modular';
+import { Field, mod, IField, validateField } from '@noble/curves/abstract/modular';
 import { poseidon } from '@noble/curves/abstract/poseidon';
 import { weierstrass, ProjPointType, SignatureType } from '@noble/curves/abstract/weierstrass';
 import * as u from '@noble/curves/abstract/utils';
@@ -36,7 +36,7 @@ const curve = weierstrass({
   b: BigInt('3141592653589793238462643383279502884197169399375105820974944592307816406665'),
   // Field over which we'll do calculations; 2n**251n + 17n * 2n**192n + 1n
   // There is no efficient sqrt for field (P%4==1)
-  Fp: Fp(BigInt('0x800000000000011000000000000000000000000000000000000000000000001')),
+  Fp: Field(BigInt('0x800000000000011000000000000000000000000000000000000000000000001')),
   n: CURVE_ORDER, // Curve order, total count of valid points in the field.
   nBitLength, // len(bin(N).replace('0b',''))
   // Base point (x, y) aka generator point
@@ -230,14 +230,14 @@ export const keccak = (data: Uint8Array): bigint => u.bytesToNumberBE(keccak_256
 const sha256Num = (data: Uint8Array | string): bigint => u.bytesToNumberBE(sha256(data));
 
 // Poseidon hash
-export const Fp253 = Fp(
+export const Fp253 = Field(
   BigInt('14474011154664525231415395255581126252639794253786371766033694892385558855681')
 ); // 2^253 + 2^199 + 1
-export const Fp251 = Fp(
+export const Fp251 = Field(
   BigInt('3618502788666131213697322783095070105623107215331596699973092056135872020481')
 ); // 2^251 + 17 * 2^192 + 1
 
-function poseidonRoundConstant(Fp: Field<bigint>, name: string, idx: number) {
+function poseidonRoundConstant(Fp: IField<bigint>, name: string, idx: number) {
   const val = Fp.fromBytes(sha256(utf8ToBytes(`${name}${idx}`)));
   return Fp.create(val);
 }
@@ -245,7 +245,7 @@ function poseidonRoundConstant(Fp: Field<bigint>, name: string, idx: number) {
 // NOTE: doesn't check eiginvalues and possible can create unsafe matrix. But any filtration here will break compatibility with starknet
 // Please use only if you really know what you doing.
 // https://eprint.iacr.org/2019/458.pdf Section 2.3 (Avoiding Insecure Matrices)
-export function _poseidonMDS(Fp: Field<bigint>, name: string, m: number, attempt = 0) {
+export function _poseidonMDS(Fp: IField<bigint>, name: string, m: number, attempt = 0) {
   const x_values: bigint[] = [];
   const y_values: bigint[] = [];
   for (let i = 0; i < m; i++) {
@@ -264,7 +264,7 @@ const MDS_SMALL = [
 ].map((i) => i.map(BigInt));
 
 export type PoseidonOpts = {
-  Fp: Field<bigint>;
+  Fp: IField<bigint>;
   rate: number;
   capacity: number;
   roundsFull: number;
