@@ -62,102 +62,70 @@ describe('starknet', () => {
     }
   });
 
-  should('Invalid signatures', () => {
-    /*
-
-    it('should not verify invalid signature inputs lengths', () => {
-      const ecOrder = starkwareCrypto.ec.n;
-      const {maxEcdsaVal} = starkwareCrypto;
-      const maxMsgHash = maxEcdsaVal.sub(oneBn);
-      const maxR = maxEcdsaVal.sub(oneBn);
-      const maxS = ecOrder.sub(oneBn).sub(oneBn);
-      const maxStarkKey = maxEcdsaVal.sub(oneBn);
+  describe('invalid signatures', () => {
+    should('verify signature length', () => {
+      const ecOrder = starknet.CURVE.n;
+      const maxEcdsaVal = 2n ** 251n;
+      const maxMsgHash = maxEcdsaVal - 1n;
+      const maxR = maxEcdsaVal - 1n;
+      const maxS = ecOrder - 1n - 1n;
+      const maxStarkKey = maxEcdsaVal - 1n;
+      const verif = starknet.verify;
 
       // Test invalid message length.
-      expect(() =>
-        starkwareCrypto.verify(maxStarkKey, maxMsgHash.add(oneBn).toString(16), {
-          r: maxR,
-          s: maxS
-        })
-      ).to.throw('Message not signable, invalid msgHash length.');
+      throws(
+        () =>
+          verif(maxStarkKey, maxMsgHash.add(oneBn).toString(16), {
+            r: maxR,
+            s: maxS,
+          }),
+        'Message not signable, invalid msgHash length.'
+      );
       // Test invalid r length.
-      expect(() =>
-        starkwareCrypto.verify(maxStarkKey, maxMsgHash.toString(16), {
-          r: maxR.add(oneBn),
-          s: maxS
-        })
-      ).to.throw('Message not signable, invalid r length.');
+      throws(
+        () =>
+          verif(maxStarkKey, maxMsgHash.toString(16), {
+            r: maxR + 1n,
+            s: maxS,
+          }),
+        'Message not signable, invalid r length.'
+      );
       // Test invalid w length.
-      expect(() =>
-        starkwareCrypto.verify(maxStarkKey, maxMsgHash.toString(16), {
-          r: maxR,
-          s: maxS.add(oneBn)
-        })
-      ).to.throw('Message not signable, invalid w length.');
+      throws(
+        () =>
+          verif(maxStarkKey, maxMsgHash.toString(16), {
+            r: maxR,
+            s: maxS + 1n,
+          }),
+        'Message not signable, invalid w length.'
+      );
       // Test invalid s length.
-      expect(() =>
-        starkwareCrypto.verify(maxStarkKey, maxMsgHash.toString(16), {
-          r: maxR,
-          s: maxS.add(oneBn).add(oneBn)
-        })
-      ).to.throw('Message not signable, invalid s length.');
+      throws(
+        () =>
+          verif(maxStarkKey, maxMsgHash.toString(16), {
+            r: maxR,
+            s: maxS + 1n + 1n,
+          }),
+        'Message not signable, invalid s length.'
+      );
     });
 
-    it('should not verify invalid signatures', () => {
-      const privKey = generateRandomStarkPrivateKey();
-      const keyPair = starkwareCrypto.ec.keyFromPrivate(privKey, 'hex');
-      const keyPairPub = starkwareCrypto.ec.keyFromPublic(
-        keyPair.getPublic(),
-        'BN'
-      );
-      const msgHash = new BN(randomHexString(61));
-      const msgSignature = starkwareCrypto.sign(keyPair, msgHash);
-
-      // Test invalid public key.
-      const invalidKeyPairPub = starkwareCrypto.ec.keyFromPublic(
-        {x: keyPairPub.pub.getX().add(oneBn), y: keyPairPub.pub.getY()},
-        'BN'
-      );
-      expect(
-        starkwareCrypto.verify(
-          invalidKeyPairPub,
-          msgHash.toString(16),
-          msgSignature
-        )
-      ).to.be.false;
-      // Test invalid message.
-      expect(
-        starkwareCrypto.verify(
-          keyPair,
-          msgHash.add(oneBn).toString(16),
-          msgSignature
-        )
-      ).to.be.false;
-      expect(
-        starkwareCrypto.verify(
-          keyPairPub,
-          msgHash.add(oneBn).toString(16),
-          msgSignature
-        )
-      ).to.be.false;
-      // Test invalid r.
-      msgSignature.r.iadd(oneBn);
-      expect(starkwareCrypto.verify(keyPair, msgHash.toString(16), msgSignature))
-        .to.be.false;
-      expect(
-        starkwareCrypto.verify(keyPairPub, msgHash.toString(16), msgSignature)
-      ).to.be.false;
-      // Test invalid s.
-      msgSignature.r.isub(oneBn);
-      msgSignature.s.iadd(oneBn);
-      expect(starkwareCrypto.verify(keyPair, msgHash.toString(16), msgSignature))
-        .to.be.false;
-      expect(
-        starkwareCrypto.verify(keyPairPub, msgHash.toString(16), msgSignature)
-      ).to.be.false;
+    should('not verify invalid signatures', () => {
+      const privKey = starknet.utils.randomPrivateKey();
+      const pub = starknet.getPublicKey(privKey);
+      const pubInvalid = starknet.getPublicKey(starknet.utils.randomPrivateKey());
+      const msg = BigInt('0x' + '12'.repeat(61)); // 61-byte
+      const msgHex = msg.toString(16);
+      const msgHexInvalid = (msg + 1n).toString(16);
+      const sig = starknet.sign(msgHex, privKey);
+      const sigInvalidR = new starknet.Signature(sig.r + 1n, sig.r);
+      const sigInvalidS = new starknet.Signature(sig.r, sig.r + 1n);
+      const verif = starknet.verify;
+      deepStrictEqual(verif(sig, msgHex, pubInvalid), false, 'verifies with invalid public key');
+      // deepStrictEqual(verif(sig, msgHexInvalid, pub), false, 'verifies with invalid message');
+      deepStrictEqual(verif(sigInvalidR, msgHex, pub), false, 'verifies with invalid signature R');
+      deepStrictEqual(verif(sigInvalidS, msgHex, pub), false, 'verifies with invalid signature S');
     });
-  });
-    */
   });
 
   should('Pedersen', () => {

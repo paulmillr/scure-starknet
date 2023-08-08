@@ -114,7 +114,6 @@ describe('starknet basic', () => {
     );
   });
 
-
   should('Seed derivation (example)', () => {
     const layer = 'starkex';
     const application = 'starkdeployement';

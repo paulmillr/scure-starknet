@@ -43,8 +43,8 @@
   "scripts": {
     "build": "tsc && tsc -p tsconfig.esm.json",
     "bench": "cd test/benchmark; npm i; node index.js",
-    "lint": "prettier --check index.ts",
-    "format": "prettier --write index.ts",
+    "lint": "prettier --check index.ts test/*.test.js",
+    "format": "prettier --write index.ts test/*.test.js",
     "test": "node test/index.test.js"
   },
   "keywords": [
