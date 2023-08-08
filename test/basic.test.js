@@ -69,13 +69,6 @@ describe('starknet basic', () => {
     );
   });
 
-  should('Hash chain', () => {
-    deepStrictEqual(
-      starknet.hashChain([1, 2, 3]),
-      '0x5d9d62d4040b977c3f8d2389d494e4e89a96a8b45c44b1368f1cc6ec5418915'
-    );
-  });
-
   should('Pedersen hash edgecases', () => {
     // >>> pedersen_hash(0,0)
     const zero = '0x49ee3eba8c1600700ee1b87eb599f16716b0b1022947733551fde4050ca6804';
@@ -103,24 +96,6 @@ describe('starknet basic', () => {
     throws(() => starknet.pedersen(false, false), 'false');
     throws(() => starknet.pedersen(true, true), 'true');
     throws(() => starknet.pedersen(10.1, 10.1), 'float');
-  });
-
-  should('hashChain edgecases', () => {
-    deepStrictEqual(starknet.hashChain([32312321312321312312312321n]), '0x1aba6672c014b4838cc201');
-    deepStrictEqual(
-      starknet.hashChain([1n, 2n]),
-      '0x5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026'
-    );
-    deepStrictEqual(
-      starknet.hashChain([1, 2]),
-      '0x5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026'
-    );
-    throws(() => starknet.hashChain([]));
-    throws(() => starknet.hashChain('123'));
-    deepStrictEqual(
-      starknet.hashChain([1, 2]),
-      '0x5bb9440e27889a364bcb678b1f679ecd1347acdedcbf36e83494f857cc58026'
-    );
   });
 
   should('Pedersen hash, issue #2', () => {

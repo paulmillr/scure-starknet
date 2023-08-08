@@ -213,14 +213,6 @@ export function pedersen(x: PedersenArg, y: PedersenArg): string {
   return extractX(point.toRawBytes(true));
 }
 
-export function hashChain(data: PedersenArg[], fn = pedersen) {
-  if (!Array.isArray(data) || data.length < 1)
-    throw new Error('data should be array of at least 1 element');
-  if (data.length === 1) return numberTo0x16(pedersenArg(data[0]));
-  return Array.from(data)
-    .reverse()
-    .reduce((acc, i) => fn(i, acc));
-}
 // Same as hashChain, but computes hash even for single element and order is not revesed
 export const computeHashOnElements = (data: PedersenArg[], fn = pedersen) =>
   [0, ...data, data.length].reduce((x, y) => fn(x, y));

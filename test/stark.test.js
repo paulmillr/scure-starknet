@@ -177,10 +177,6 @@ describe('starknet', () => {
     );
   });
 
-  should('Hash chain', () => {
-    deepStrictEqual(starknet.hashChain([1, 2, 3]), starknet.pedersen(1, starknet.pedersen(2, 3)));
-  });
-
   should('Key grinding', () => {
     deepStrictEqual(
       starknet.grindKey('86F3E7293141F20A8BAFF320E8EE4ACCB9D4A4BF2B4D295E8CEE784DB46E0519'),
