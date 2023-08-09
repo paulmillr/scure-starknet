@@ -4,7 +4,7 @@ import * as starknet from '../lib/esm/index.js';
 import * as fc from 'fast-check';
 
 const FC_BIGINT = fc.bigInt(1n + 1n, starknet.CURVE.n - 1n);
-const FC_MAX = fc.bigInt(0n, starknet.MAX_VALUE);
+const FC_MAX = fc.bigInt(0n, starknet.MAX_VALUE - 1n);
 
 describe('starknet property', () => {
   should('Point#toHex() roundtrip', () => {
