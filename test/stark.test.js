@@ -69,52 +69,43 @@ describe('starknet', () => {
       const maxMsgHash = maxEcdsaVal - 1n;
       const maxR = maxEcdsaVal - 1n;
       const maxS = ecOrder - 1n - 1n;
+      // NOTE: original test in starknet is broken, because
+      // > const maxStarkKey = maxEcdsaVal.sub(oneBn);
+      // is not valid key!
+      // Also, there is no checks for key bigger than maxEcdsaVal in code
       const maxStarkKey = maxEcdsaVal - 1n;
-      const verif = starknet.verify;
-
-      // Test invalid message length.
-      throws(
-        () =>
-          verif(maxStarkKey, maxMsgHash.add(oneBn).toString(16), {
-            r: maxR,
-            s: maxS,
-          }),
-        'Message not signable, invalid msgHash length.'
+      // real key
+      const maxStarkKey2 = starknet.getPublicKey(
+        '7D0F499B250763F4CACF0D8D9E267D012C03503CE5DE876B33D3A3837DC90AF'
       );
-      // Test invalid r length.
-      throws(
-        () =>
-          verif(maxStarkKey, maxMsgHash.toString(16), {
-            r: maxR + 1n,
-            s: maxS,
-          }),
-        'Message not signable, invalid r length.'
-      );
-      // Test invalid w length.
-      throws(
-        () =>
-          verif(maxStarkKey, maxMsgHash.toString(16), {
-            r: maxR,
-            s: maxS + 1n,
-          }),
-        'Message not signable, invalid w length.'
-      );
-      // Test invalid s length.
-      throws(
-        () =>
-          verif(maxStarkKey, maxMsgHash.toString(16), {
-            r: maxR,
-            s: maxS + 1n + 1n,
-          }),
-        'Message not signable, invalid s length.'
-      );
+      const verif = (sig, msg, key) =>
+        starknet.verify(
+          new starknet.Signature(sig.r, sig.s),
+          msg.toString(16),
+          typeof key === 'bigint' ? key.toString(16) : key
+        );
+      const vectors = [
+        { r: 0n, s: maxS, msg: maxMsgHash, name: 'invalid r' },
+        { r: maxR + 1n, s: maxS, msg: maxMsgHash, name: 'invalid r' },
+        { r: maxR, s: maxS + 1n, name: 'invalid w' },
+        { r: maxR, s: 0n, msg: maxMsgHash, name: 'invalid s' },
+        { r: maxR, s: maxS + 1n + 1n, msg: maxMsgHash, name: 'invalid s' },
+        { r: maxR, s: maxS, msg: maxMsgHash + 1n, name: 'invalid msgHash' },
+      ];
+      // Verify that max values actually works
+      verif({ r: maxR, s: maxS }, maxMsgHash, maxStarkKey);
+      verif({ r: maxR, s: maxS }, maxMsgHash, maxStarkKey2);
+      for (const v of vectors) {
+        throws(() => verif(v, v.msg, maxStarkKey), v.name);
+        throws(() => verif(v, v.msg, maxStarkKey2), `${v.name} (second key)`);
+      }
     });
 
     should('not verify invalid signatures', () => {
       const privKey = starknet.utils.randomPrivateKey();
       const pub = starknet.getPublicKey(privKey);
       const pubInvalid = starknet.getPublicKey(starknet.utils.randomPrivateKey());
-      const msg = BigInt('0x' + '12'.repeat(61)); // 61-byte
+      const msg = BigInt('0xCEFE1753E86FDC91FEA207A720F529A13D4A65886C603449AE95A846DC1E7'); // 61 char hex
       const msgHex = msg.toString(16);
       const msgHexInvalid = (msg + 1n).toString(16);
       const sig = starknet.sign(msgHex, privKey);
@@ -122,9 +113,69 @@ describe('starknet', () => {
       const sigInvalidS = new starknet.Signature(sig.r, sig.r + 1n);
       const verif = starknet.verify;
       deepStrictEqual(verif(sig, msgHex, pubInvalid), false, 'verifies with invalid public key');
-      // deepStrictEqual(verif(sig, msgHexInvalid, pub), false, 'verifies with invalid message');
+      deepStrictEqual(verif(sig, msgHexInvalid, pub), false, 'verifies with invalid message');
       deepStrictEqual(verif(sigInvalidR, msgHex, pub), false, 'verifies with invalid signature R');
       deepStrictEqual(verif(sigInvalidS, msgHex, pub), false, 'verifies with invalid signature S');
+    });
+
+    should('signature cross-test (with different lengths)', () => {
+      const vectors = [
+        {
+          msg: '00',
+          s: '12bcacdadecfca0773945071b371adda1bc47fce319f80aa590b06d45a996f5',
+          r: '443b6a567dfeae1c8c77dc589cdde204649f85ba45e54bead543299e5888233',
+        },
+        {
+          msg: '40DC8ABE9797B6EF5C0886AD4A78405CD393493D2B6A8733B77250F61',
+          s: '49ec9e6aa783e7518ffc05ec054db3ddf2d8ad301e4ee790392841fa759431e',
+          r: '78a73ac7f793e706e50871da2efc2f83c30852a90110cab71108ff6a3af864e',
+        },
+        {
+          msg: '40DC8ABE9797B6EF5C0886AD4A78405CD393493D2B6A8733B77250F610C',
+          s: '2c512662f37585497683e2d98c655e098ad4504d41d3a3b17ad0f0f9db45ddb',
+          r: '5864e5d2843d4469e70282042c7675e4fcb4b530d45dd6f02ae03c8d2f5431a',
+        },
+        {
+          msg: '40DC8ABE9797B6EF5C0886AD4A78405CD393493D2B6A8733B77250F610C1D',
+          s: '7a2902b67913c013557f0ea61902a1edc8539aa1321549bef9a47dbb9af0eba',
+          r: '7f313dc69e5f785a7071a9acc12a1294bce54d199a90b1ecdd39fd654c55190',
+        },
+        {
+          msg: '40DC8ABE9797B6EF5C0886AD4A78405CD393493D2B6A8733B77250F610C1D00',
+          s: '4cb6384d5b82bf873c87e02e11d32cefb1f10cc6d3d67895662d6c87c6df505',
+          r: '73bab8d7be901dc6bdba59f458c3ddeb4e0264657c60ff1b42a403d69e84718',
+        },
+      ];
+      const privKey = '7D0F499B250763F4CACF0D8D9E267D012C03503CE5DE876B33D3A3837DC90AF';
+      // Code for check generate vectors:
+      // const keyPair = starkwareCrypto.ec.keyFromPrivate(privKey, 'hex');
+      // const keyPairPub = starkwareCrypto.ec.keyFromPublic(keyPair.getPublic(), 'BN');
+
+      // function testSign(hh) {
+      //   const s = starkwareCrypto.sign(keyPair, new BN(hh, 16));
+      //   return { s: s.s.toString(16), r: s.r.toString(16) };
+      // }
+      // for (const v of vectors) {
+      //   const res = testSign(v.msg);
+      //   console.log('TTT', res);
+      //   deepStrictEqual(res.s, v.s);
+      //   deepStrictEqual(res.r, v.r);
+      // }
+
+      for (const v of vectors) {
+        const sig = starknet.sign(v.msg, privKey);
+        deepStrictEqual(sig.s.toString(16), v.s);
+        deepStrictEqual(sig.r.toString(16), v.r);
+      }
+      // Crashes: Message not signable, invalid msgHash length.
+      // {
+      //   msg: '40DC8ABE9797B6EF5C0886AD4A78405CD393493D2B6A8733B77250F610C1D000',
+      //   s: '4cb6384d5b82bf873c87e02e11d32cefb1f10cc6d3d67895662d6c87c6df505',
+      //   r: '73bab8d7be901dc6bdba59f458c3ddeb4e0264657c60ff1b42a403d69e84718'
+      // }
+      throws(() =>
+        starknet.sign('40DC8ABE9797B6EF5C0886AD4A78405CD393493D2B6A8733B77250F610C1D000', privKey)
+      );
     });
   });
 

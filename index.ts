@@ -2,9 +2,9 @@
 import { keccak_256 } from '@noble/hashes/sha3';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes } from '@noble/hashes/utils';
-import { Field, mod, IField, validateField } from '@noble/curves/abstract/modular';
+import { Field, mod, IField, validateField, invert } from '@noble/curves/abstract/modular';
 import { poseidon } from '@noble/curves/abstract/poseidon';
-import { weierstrass, ProjPointType, SignatureType } from '@noble/curves/abstract/weierstrass';
+import { weierstrass, ProjPointType, SignatureType, DER } from '@noble/curves/abstract/weierstrass';
 import * as u from '@noble/curves/abstract/utils';
 import type { Hex } from '@noble/curves/abstract/utils';
 import { getHash } from '@noble/curves/_shortw_utils';
@@ -16,6 +16,11 @@ type ProjectivePoint = ProjPointType<bigint>;
 const CURVE_ORDER = BigInt(
   '3618502788666131213697322783095070105526743751716087489154079457884512865583'
 );
+// 2**251, limit for msgHash and Signature.r
+export const MAX_VALUE = BigInt(
+  '0x800000000000000000000000000000000000000000000000000000000000000'
+);
+
 const nBitLength = 252;
 function bits2int(bytes: Uint8Array): bigint {
   while (bytes[0] === 0) bytes = bytes.subarray(1); // strip leading 0s
@@ -70,12 +75,41 @@ export function getPublicKey(privKey: Hex, isCompressed = false): Uint8Array {
 export function getSharedSecret(privKeyA: Hex, pubKeyB: Hex): Uint8Array {
   return curve.getSharedSecret(normPrivKey(privKeyA), pubKeyB);
 }
-export function sign(msgHash: Hex, privKey: Hex, opts?: any): SignatureType {
-  return curve.sign(ensureBytes(msgHash), normPrivKey(privKey), opts);
+
+function checkSignature(signature: SignatureType) {
+  // Signature.s checked inside weierstrass
+  const { r, s } = signature;
+  if (r < 0n || r >= MAX_VALUE) throw new Error(`Signature.r should be [1, ${MAX_VALUE})`);
+  const w = invert(s, CURVE_ORDER);
+  if (w < 0n || w >= MAX_VALUE) throw new Error(`inv(Signature.s) should be [1, ${MAX_VALUE})`);
 }
+
+function checkMessage(msgHash: Hex) {
+  const bytes = ensureBytes(msgHash);
+  const num = u.bytesToNumberBE(bytes);
+  // num < 0 impossible here
+  if (num >= MAX_VALUE) throw new Error(`msgHash should be [0, ${MAX_VALUE})`);
+  return bytes;
+}
+
+export function sign(msgHash: Hex, privKey: Hex, opts?: any): SignatureType {
+  const sig = curve.sign(checkMessage(msgHash), normPrivKey(privKey), opts);
+  checkSignature(sig);
+  return sig;
+}
+
 export function verify(signature: SignatureType | Hex, msgHash: Hex, pubKey: Hex) {
-  const sig = signature instanceof Signature ? signature : ensureBytes(signature);
-  return curve.verify(sig, ensureBytes(msgHash), ensureBytes(pubKey));
+  if (!(signature instanceof Signature)) {
+    const bytes = ensureBytes(signature);
+    try {
+      signature = Signature.fromDER(bytes);
+    } catch (derError) {
+      if (!(derError instanceof DER.Err)) throw derError;
+      signature = Signature.fromCompact(bytes);
+    }
+  }
+  checkSignature(signature);
+  return curve.verify(signature, checkMessage(msgHash), ensureBytes(pubKey));
 }
 
 const { CURVE, ProjectivePoint, Signature, utils } = curve;
@@ -88,10 +122,6 @@ function extractX(bytes: Uint8Array): string {
 }
 function strip0x(hex: string) {
   return hex.replace(/^0x/i, '');
-}
-function numberTo0x16(num: bigint) {
-  // can't use utils.numberToHexUnpadded: adds leading 0 for even byte length
-  return `0x${num.toString(16)}`;
 }
 
 // seed generation
