@@ -160,7 +160,17 @@ export function getAccountPath(
   return `m/2645'/${layerNum}'/${applicationNum}'/${int31(eth)}'/${int31(eth >> 31n)}'/${index}`;
 }
 
+// The Pedersen hash uses five different points on the curve.
+// This is critical to ensure that they have been generated in a way
+// that nobody knows the discrete logarithm of one point regarding another.
+//
+// Starknet utilizes nothing-up-my-sleeve technique:
+// The parameters of the Pedersen hash are generated from the constant 𝜋.
+// The x-coordinate of each point is a chunk of 76 decimal digit of 𝜋 modulo 𝑝.
+// If it is a quadratic residue then the point is valid
+// else the x-coordinate coordinate is incremented by one.
 // https://docs.starkware.co/starkex/pedersen-hash-function.html
+// https://github.com/starkware-libs/starkex-for-spot-trading/blob/607f0b4ce507e1d95cd018d206a2797f6ba4aab4/src/starkware/crypto/starkware/crypto/signature/nothing_up_my_sleeve_gen.py
 const PEDERSEN_POINTS = [
   new ProjectivePoint(
     2089986280348253421170679821480865132823066470938446095505822317253594081284n,
@@ -224,6 +234,9 @@ function pedersenArg(arg: PedersenArg): bigint {
   return value;
 }
 
+/**
+ * Warning: Not algorithmic constant-time.
+ */
 function pedersenSingle(point: ProjectivePoint, value: PedersenArg, constants: ProjectivePoint[]) {
   let x = pedersenArg(value);
   for (let j = 0; j < 252; j++) {
@@ -252,9 +265,10 @@ export const keccak = (data: Uint8Array): bigint => u.bytesToNumberBE(keccak_256
 const sha256Num = (data: Uint8Array | string): bigint => u.bytesToNumberBE(sha256(data));
 
 // Poseidon hash
-export const Fp253 = Field(
-  BigInt('14474011154664525231415395255581126252639794253786371766033694892385558855681')
-); // 2^253 + 2^199 + 1
+// Unused for now
+// export const Fp253 = Field(
+//   BigInt('14474011154664525231415395255581126252639794253786371766033694892385558855681')
+// ); // 2^253 + 2^199 + 1
 export const Fp251 = Field(
   BigInt('3618502788666131213697322783095070105623107215331596699973092056135872020481')
 ); // 2^251 + 17 * 2^192 + 1
