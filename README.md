@@ -129,7 +129,7 @@ deepStrictEqual(
 
 ## Security
 
--
+Use at your own risk.
 
 ## Speed
 
