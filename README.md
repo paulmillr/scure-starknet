@@ -1,18 +1,32 @@
-# micro-starknet
+# scure-starknet
 
-Minimal implementation of [Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html)
-including [Poseidon hash](https://www.poseidon-hash.info), Pedersen and Stark Curve.
+Auditable & minimal JS implementation of [Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html).
+Includes stark curve, pedersen and [poseidon](https://www.poseidon-hash.info) hash,
+utilizing [noble-curves](https://github.com/paulmillr/noble-curves) for underlying arithmetics.
 
-The library utilizes [noble-curves](https://github.com/paulmillr/noble-curves)
-for underlying arithmetics.
+### This library belongs to _scure_
+
+> **scure** — secure, independently audited packages for every use case.
+
+- Audited by a third-party
+- Releases are signed with PGP keys and built transparently with NPM provenance
+- Check out all libraries:
+  [base](https://github.com/paulmillr/scure-base),
+  [bip32](https://github.com/paulmillr/scure-bip32),
+  [bip39](https://github.com/paulmillr/scure-bip39),
+  [btc-signer](https://github.com/paulmillr/scure-btc-signer),
+  [starknet](https://github.com/paulmillr/scure-starknet)
 
 ## Usage
 
-> npm install micro-starknet
+> npm install @scure/starknet
 
 ```ts
-import * as starknet from 'micro-starknet';
+import * as starknet from '@scure/starknet';
 ```
+
+We support all major platforms and runtimes.
+For [Deno](https://deno.land), ensure to use [npm specifier](https://deno.land/manual@v1.28.0/node/npm_specifiers).
 
 ### Curve
 
@@ -81,9 +95,9 @@ should('Seed derivation (example)', () => {
 
 ```ts
 type PoseidonFn = ReturnType<typeof poseidon> & {
-    m: number;
-    rate: number;
-    capacity: number;
+  m: number;
+  rate: number;
+  capacity: number;
 };
 function poseidonHash(x: bigint, y: bigint, fn?: PoseidonFn): bigint;
 function poseidonHashFunc(x: Uint8Array, y: Uint8Array, fn?: PoseidonFn): Uint8Array;
@@ -113,29 +127,42 @@ deepStrictEqual(
 );
 ```
 
-## Learning
+## Security
 
-- [SNARK Security and Performance](https://a16zcrypto.com/content/article/snark-security-and-performance/)
-  calculating security level of snarks.
+-
 
-## Benchmark
+## Speed
 
-Benchmarks measured with Apple M2 on MacOS 13 with node.js 18.10.
-
-The package is much faster than `@starkware-industries/starkware-crypto-utils`.
+Benchmark results on Apple M2 with node v20:
 
 ```
 stark
 init x 33 ops/sec @ 30ms/op
 pedersen
-├─old x 86 ops/sec @ 11ms/op
-└─noble x 620 ops/sec @ 1ms/op
+├─old x 86 ops/sec @ 11ms/op # @starkware-industries/starkware-crypto-utils
+└─scure x 620 ops/sec @ 1ms/op
 poseidon x 7,162 ops/sec @ 139μs/op
 verify
 ├─old x 303 ops/sec @ 3ms/op
-└─noble x 485 ops/sec @ 2ms/op
+└─scure x 485 ops/sec @ 2ms/op
 ```
+
+## Contributing & testing
+
+1. Clone the repository
+2. `npm install` to install build dependencies like TypeScript
+3. `npm run build` to compile TypeScript code
+4. `npm run test` will execute all main tests
+
+## Resources
+
+- [SNARK Security and Performance](https://a16zcrypto.com/content/article/snark-security-and-performance/)
+  calculating security level of snarks.
 
 ## License
 
-MIT (c) Paul Miller [(https://paulmillr.com)](https://paulmillr.com), see LICENSE file.
+The MIT License (MIT)
+
+Copyright (c) 2022 Paul Miller [(https://paulmillr.com)](https://paulmillr.com)
+
+See LICENSE file.

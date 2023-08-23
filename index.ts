@@ -1,4 +1,4 @@
-/*! micro-starknet - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+/*! scure-starknet - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 import { keccak_256 } from '@noble/hashes/sha3';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes } from '@noble/hashes/utils';
