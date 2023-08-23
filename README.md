@@ -156,6 +156,7 @@ verify
 
 ## Resources
 
+- [Starknet docs](https://docs.starkware.co/starkex/stark-curve.html)
 - [SNARK Security and Performance](https://a16zcrypto.com/content/article/snark-security-and-performance/)
   calculating security level of snarks.
 
