@@ -1,8 +1,9 @@
 # scure-starknet
 
-Auditable & minimal JS implementation of [Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html).
-Includes stark curve, pedersen and [poseidon](https://www.poseidon-hash.info) hash,
-utilizing [noble-curves](https://github.com/paulmillr/noble-curves) for underlying arithmetics.
+Audited & minimal JS implementation of
+[Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html). Includes stark curve,
+pedersen and [poseidon](https://www.poseidon-hash.info) hash, utilizing
+[noble-curves](https://github.com/paulmillr/noble-curves) for underlying arithmetics.
 
 ### This library belongs to _scure_
 
@@ -10,8 +11,7 @@ utilizing [noble-curves](https://github.com/paulmillr/noble-curves) for underlyi
 
 - Audited by a third-party
 - Releases are signed with PGP keys and built transparently with NPM provenance
-- Check out all libraries:
-  [base](https://github.com/paulmillr/scure-base),
+- Check out all libraries: [base](https://github.com/paulmillr/scure-base),
   [bip32](https://github.com/paulmillr/scure-bip32),
   [bip39](https://github.com/paulmillr/scure-bip39),
   [btc-signer](https://github.com/paulmillr/scure-btc-signer),
@@ -25,8 +25,8 @@ utilizing [noble-curves](https://github.com/paulmillr/noble-curves) for underlyi
 import * as starknet from '@scure/starknet';
 ```
 
-We support all major platforms and runtimes.
-For [Deno](https://deno.land), ensure to use [npm specifier](https://deno.land/manual@v1.28.0/node/npm_specifiers).
+We support all major platforms and runtimes. For [Deno](https://deno.land), ensure to use
+[npm specifier](https://deno.land/manual@v1.28.0/node/npm_specifiers).
 
 ### Curve
 
@@ -129,7 +129,14 @@ deepStrictEqual(
 
 ## Security
 
-Use at your own risk.
+The library has been independently audited:
+
+- at version 0.3.0, in Sep 2023, by [Kudelski Security](https://kudelskisecurity.com)
+  - PDFs: [offline](./audit/2023-09-kudelski-audit-starknet.pdf)
+  - [Changes since audit](https://github.com/paulmillr/noble-curves/compare/0.3.0..main)
+  - Scope: [scure-starknet](https://github.com/paulmillr/scure-starknet) and its related abstract
+    modules of noble-curves: `curve`, `modular`, `poseidon`, `weierstrass`
+  - The audit has been funded by [Starkware](https://starkware.co)
 
 ## Speed
 
