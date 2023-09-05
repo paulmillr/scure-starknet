@@ -1,15 +1,16 @@
 # scure-starknet
 
-Audited & minimal JS implementation of
-[Starknet cryptography](https://docs.starkware.co/starkex/stark-curve.html). Includes stark curve,
-pedersen and [poseidon](https://www.poseidon-hash.info) hash, utilizing
-[noble-curves](https://github.com/paulmillr/noble-curves) for underlying arithmetics.
+Audited & minimal JS implementation of Starknet cryptography.
+
+- 🔒 [Audited](#security) by an independent security firm
+- 🧜‍♂️ [Stark curve](https://docs.starkware.co/starkex/stark-curve.html), pedersen and poseidon hashes
+- ➰ Uses [noble-curves](https://github.com/paulmillr/noble-curves) for underlying arithmetics
 
 ### This library belongs to _scure_
 
 > **scure** — secure, independently audited packages for every use case.
 
-- Audited by a third-party
+- Minimal or zero dependencies
 - Releases are signed with PGP keys and built transparently with NPM provenance
 - Check out all libraries: [base](https://github.com/paulmillr/scure-base),
   [bip32](https://github.com/paulmillr/scure-bip32),

@@ -1,7 +1,7 @@
 {
   "name": "@scure/starknet",
   "version": "0.3.0",
-  "description": "Minimal implementation of Starknet cryptography including Pedersen and Stark Curve",
+  "description": "Audited & minimal implementation of Starknet cryptography including Pedersen and Stark Curve",
   "files": [
     "lib",
     "index.ts"
@@ -53,12 +53,8 @@
     "pedersen hash",
     "stark key",
     "starkware",
-    "starkex"
+    "starkex",
+    "cryptography"
   ],
-  "funding": [
-    {
-      "type": "individual",
-      "url": "https://paulmillr.com/funding/"
-    }
-  ]
+  "funding": "https://paulmillr.com/funding/"
 }
