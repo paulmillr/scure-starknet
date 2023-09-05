@@ -133,7 +133,7 @@ The library has been independently audited:
 
 - at version 0.3.0, in Sep 2023, by [Kudelski Security](https://kudelskisecurity.com)
   - PDFs: [offline](./audit/2023-09-kudelski-audit-starknet.pdf)
-  - [Changes since audit](https://github.com/paulmillr/noble-curves/compare/0.3.0..main)
+  - [Changes since audit](https://github.com/paulmillr/scure-starknet/compare/0.3.0..main)
   - Scope: [scure-starknet](https://github.com/paulmillr/scure-starknet) and its related abstract
     modules of noble-curves: `curve`, `modular`, `poseidon`, `weierstrass`
   - The audit has been funded by [Starkware](https://starkware.co)
