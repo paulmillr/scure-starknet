@@ -197,7 +197,7 @@ const PEDERSEN_POINTS = [
     776496453633298175483985398648758586525933812536653089401905292063708816422n,
     1n
   ),
-];
+] as const;
 
 function pedersenPrecompute(p1: ProjectivePoint, p2: ProjectivePoint): ProjectivePoint[] {
   const out: ProjectivePoint[] = [];
@@ -241,6 +241,7 @@ function pedersenSingle(point: ProjectivePoint, value: PedersenArg, constants: P
   let x = pedersenArg(value);
   for (let j = 0; j < 252; j++) {
     const pt = constants[j];
+    if (!pt) throw new Error('invalid constant index');
     if (pt.equals(point)) throw new Error('Same point');
     if ((x & 1n) !== 0n) point = point.add(pt);
     x >>= 1n;
@@ -351,7 +352,7 @@ export const poseidonSmall = poseidonBasic(
 );
 
 export function poseidonHash(x: bigint, y: bigint, fn = poseidonSmall): bigint {
-  return fn([x, y, 2n])[0];
+  return fn([x, y, 2n])[0]!;
 }
 
 export function poseidonHashFunc(x: Uint8Array, y: Uint8Array, fn = poseidonSmall): Uint8Array {
@@ -359,7 +360,7 @@ export function poseidonHashFunc(x: Uint8Array, y: Uint8Array, fn = poseidonSmal
 }
 
 export function poseidonHashSingle(x: bigint, fn = poseidonSmall): bigint {
-  return fn([x, 0n, 1n])[0];
+  return fn([x, 0n, 1n])[0]!;
 }
 
 export function poseidonHashMany(values: bigint[], fn = poseidonSmall): bigint {
@@ -370,8 +371,12 @@ export function poseidonHashMany(values: bigint[], fn = poseidonSmall): bigint {
   while (padded.length % rate !== 0) padded.push(0n);
   let state: bigint[] = new Array(m).fill(0n);
   for (let i = 0; i < padded.length; i += rate) {
-    for (let j = 0; j < rate; j++) state[j] += padded[i + j];
+    for (let j = 0; j < rate; j++) {
+      const item = padded[i + j];
+      if (typeof item === 'undefined') throw new Error('invalid index');
+      state[j] += item;
+    }
     state = fn(state);
   }
-  return state[0];
+  return state[0]!;
 }
