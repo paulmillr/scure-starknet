@@ -1,4 +1,4 @@
-import { deepStrictEqual, throws } from 'assert';
+import { deepStrictEqual, throws } from 'node:assert';
 import { describe, should } from 'micro-should';
 import * as starknet from '../lib/esm/index.js';
 import * as fc from 'fast-check';
@@ -49,7 +49,7 @@ describe('starknet property', () => {
 });
 
 // ESM is broken.
-import url from 'url';
+import url from 'node:url';
 if (import.meta.url === url.pathToFileURL(process.argv[1]).href) {
   should.run();
 }

@@ -1,8 +1,8 @@
-import { deepStrictEqual, throws } from 'assert';
+import { deepStrictEqual, throws } from 'node:assert';
 import { describe, should } from 'micro-should';
 import * as starknet from '../lib/esm/index.js';
 import { bytesToHex as hex } from '@noble/hashes/utils';
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 
 function parseTest(path) {
   let data = fs.readFileSync(path, 'ascii');
@@ -199,7 +199,7 @@ should('Poseidon 2', () => {
 });
 
 // ESM is broken.
-import url from 'url';
+import url from 'node:url';
 if (import.meta.url === url.pathToFileURL(process.argv[1]).href) {
   should.run();
 }
