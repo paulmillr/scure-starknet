@@ -31,6 +31,10 @@ import * as starknet from '@scure/starknet';
 We support all major platforms and runtimes. For [Deno](https://deno.land), ensure to use
 [npm specifier](https://deno.land/manual@v1.28.0/node/npm_specifiers).
 
+Note: the examples use the 'deepStrictEqual' function from the 'assert' built-in NodeJS module to compare values.<br>
+In Typescript, you must first install the '@types/node' npm package and then import like this: `import { deepStrictEqual } from 'assert';` <br>
+In vanilla Javascript, just do this: `const { deepStrictEqual } = require("assert");` <br>
+
 ### Curve
 
 ```ts
@@ -39,7 +43,7 @@ const privateKey = '2dccce1da22003777062ee0870e9881b460a8b7eca276870f57c601f1821
 const publicKey = starknet.getPublicKey(privateKey);
 const messageHash = 'c465dd6b1bbffdb05442eb17f5ca38ad1aa78a6f56bf4415bdee219114a47';
 const sig = starknet.sign(messageHash, privateKey);
-const { r, s } = starknet.Signature.fromHex(sig);
+const { r, s } = sig;
 deepStrictEqual(r.toString(16), '5f496f6f210b5810b2711c74c15c05244dad43d18ecbbdbe6ed55584bc3b0a2');
 deepStrictEqual(s.toString(16), '4e8657b153787f741a67c0666bad6426c3741b478c8eaa3155196fc571416f3');
 deepStrictEqual(starknet.verify(sig, messageHash, publicKey), true);
