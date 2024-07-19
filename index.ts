@@ -66,7 +66,7 @@ function ensureBytes(hex: Hex): Uint8Array {
   return u.ensureBytes('', typeof hex === 'string' ? hex0xToBytes(hex) : hex);
 }
 
-function normPrivKey(privKey: Hex): string {
+export function normPrivKey(privKey: Hex): string {
   return u.bytesToHex(ensureBytes(privKey)).padStart(64, '0');
 }
 export function getPublicKey(privKey: Hex, isCompressed = false): Uint8Array {
