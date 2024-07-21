@@ -374,7 +374,8 @@ export function poseidonHashMany(values: bigint[], fn = poseidonSmall): bigint {
     for (let j = 0; j < rate; j++) {
       const item = padded[i + j];
       if (typeof item === 'undefined') throw new Error('invalid index');
-      state[j] += item;
+      if (typeof state[j] === 'undefined') throw new Error('state[j] is undefined');
+      state[j] = state[j]! + item;
     }
     state = fn(state);
   }
