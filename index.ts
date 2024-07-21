@@ -66,14 +66,14 @@ function ensureBytes(hex: Hex): Uint8Array {
   return u.ensureBytes('', typeof hex === 'string' ? hex0xToBytes(hex) : hex);
 }
 
-function normPrivKey(privKey: Hex): string {
+export function normalizePrivateKey(privKey: Hex): string {
   return u.bytesToHex(ensureBytes(privKey)).padStart(64, '0');
 }
 export function getPublicKey(privKey: Hex, isCompressed = false): Uint8Array {
-  return curve.getPublicKey(normPrivKey(privKey), isCompressed);
+  return curve.getPublicKey(normalizePrivateKey(privKey), isCompressed);
 }
 export function getSharedSecret(privKeyA: Hex, pubKeyB: Hex): Uint8Array {
-  return curve.getSharedSecret(normPrivKey(privKeyA), pubKeyB);
+  return curve.getSharedSecret(normalizePrivateKey(privKeyA), pubKeyB);
 }
 
 function checkSignature(signature: SignatureType) {
@@ -93,7 +93,7 @@ function checkMessage(msgHash: Hex) {
 }
 
 export function sign(msgHash: Hex, privKey: Hex, opts?: any): SignatureType {
-  const sig = curve.sign(checkMessage(msgHash), normPrivKey(privKey), opts);
+  const sig = curve.sign(checkMessage(msgHash), normalizePrivateKey(privKey), opts);
   checkSignature(sig);
   return sig;
 }
