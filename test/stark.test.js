@@ -228,6 +228,19 @@ describe('starknet', () => {
     );
   });
 
+  should('Private stark key normalization', () => {
+    const ethSignature =
+      '0x21fbf0696d5e0aa2ef41a2b4ffb623bcaf070461d61cf7251c74161f82fec3a43' +
+      '70854bc0a34b3ab487c1bc021cd318c734c51ae29374f2beb0e6f2dd49b4bf41c';
+    const privateKey = starknet.ethSigToPrivate(ethSignature);
+    const normalizedPrivateKey = starknet.normalizePrivateKey(privateKey);
+    deepStrictEqual(privateKey, '766f11e90cd7c7b43085b56da35c781f8c067ac0d578eabdceebc4886435bda');
+    deepStrictEqual(
+      normalizedPrivateKey,
+      '0766f11e90cd7c7b43085b56da35c781f8c067ac0d578eabdceebc4886435bda'
+    );
+  });
+
   should('Key derivation', () => {
     const layer = 'starkex';
     const application = 'starkdeployement';
