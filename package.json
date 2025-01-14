@@ -26,7 +26,7 @@
     "@scure/bip39": "~1.5.0",
     "fast-check": "3.0.0",
     "micro-bmark": "0.3.1",
-    "micro-should": "0.4.0",
+    "micro-should": "0.5.0",
     "prettier": "3.3.2",
     "typescript": "5.5.2"
   },
@@ -46,7 +46,7 @@
     "bench": "cd test/benchmark; npm i; node index.js",
     "lint": "prettier --check index.ts test/*.test.js",
     "format": "prettier --write index.ts test/*.test.js",
-    "test": "node test/index.test.js"
+    "test": "node test/index.js"
   },
   "keywords": [
     "starknet",
