@@ -46,7 +46,9 @@
     "bench": "cd test/benchmark; npm i; node index.js",
     "lint": "prettier --check index.ts test/*.test.js",
     "format": "prettier --write index.ts test/*.test.js",
-    "test": "node test/index.js"
+    "test": "node test/index.js",
+    "test:bun": "bun test/index.js",
+    "test:deno": "deno --allow-env --allow-read test/index.js"
   },
   "keywords": [
     "starknet",
