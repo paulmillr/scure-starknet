@@ -1,13 +1,21 @@
 /*! scure-starknet - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-import { keccak_256 } from '@noble/hashes/sha3';
-import { sha256 } from '@noble/hashes/sha256';
-import { utf8ToBytes } from '@noble/hashes/utils';
-import { Field, mod, IField, validateField, invert } from '@noble/curves/abstract/modular';
-import { poseidon } from '@noble/curves/abstract/poseidon';
-import { weierstrass, ProjPointType, SignatureType, DER } from '@noble/curves/abstract/weierstrass';
-import * as u from '@noble/curves/abstract/utils';
-import type { Hex } from '@noble/curves/abstract/utils';
 import { getHash } from '@noble/curves/_shortw_utils';
+import { Field, type IField, invert, mod, validateField } from '@noble/curves/abstract/modular';
+import { poseidon } from '@noble/curves/abstract/poseidon';
+import type { Hex } from '@noble/curves/abstract/utils';
+import * as u from '@noble/curves/abstract/utils';
+import {
+  type CurveFn,
+  DER,
+  type ProjConstructor,
+  type ProjPointType,
+  type SignatureConstructor,
+  type SignatureType,
+  weierstrass,
+} from '@noble/curves/abstract/weierstrass';
+import { sha256 } from '@noble/hashes/sha256';
+import { keccak_256 } from '@noble/hashes/sha3';
+import { utf8ToBytes } from '@noble/hashes/utils';
 
 // Stark-friendly elliptic curve
 // https://docs.starkware.co/starkex/stark-curve.html
@@ -17,7 +25,7 @@ const CURVE_ORDER = BigInt(
   '3618502788666131213697322783095070105526743751716087489154079457884512865583'
 );
 // 2**251, limit for msgHash and Signature.r
-export const MAX_VALUE = BigInt(
+export const MAX_VALUE: bigint = BigInt(
   '0x800000000000000000000000000000000000000000000000000000000000000'
 );
 
@@ -60,7 +68,7 @@ const curve = weierstrass({
     return mod(bits2int(bytes), CURVE_ORDER);
   },
 });
-export const _starkCurve = curve;
+export const _starkCurve: CurveFn = curve;
 
 function ensureBytes(hex: Hex): Uint8Array {
   return u.ensureBytes('', typeof hex === 'string' ? hex0xToBytes(hex) : hex);
@@ -98,7 +106,7 @@ export function sign(msgHash: Hex, privKey: Hex, opts?: any): SignatureType {
   return sig;
 }
 
-export function verify(signature: SignatureType | Hex, msgHash: Hex, pubKey: Hex) {
+export function verify(signature: SignatureType | Hex, msgHash: Hex, pubKey: Hex): boolean {
   if (!(signature instanceof Signature)) {
     const bytes = ensureBytes(signature);
     try {
@@ -112,7 +120,53 @@ export function verify(signature: SignatureType | Hex, msgHash: Hex, pubKey: Hex
   return curve.verify(signature, checkMessage(msgHash), ensureBytes(pubKey));
 }
 
-const { CURVE, ProjectivePoint, Signature, utils } = curve;
+const CURVE: Readonly<
+  import('@noble/curves/abstract/curve').BasicCurve<bigint> & {
+    a: bigint;
+    b: bigint;
+    allowedPrivateKeyLengths?: readonly number[];
+    wrapPrivateKey?: boolean;
+    endo?: {
+      beta: bigint;
+      splitScalar: (k: bigint) => {
+        k1neg: boolean;
+        k1: bigint;
+        k2neg: boolean;
+        k2: bigint;
+      };
+    };
+    isTorsionFree?:
+      | ((
+          c: import('@noble/curves/abstract/weierstrass').ProjConstructor<bigint>,
+          point: ProjPointType<bigint>
+        ) => boolean)
+      | undefined;
+    clearCofactor?:
+      | ((
+          c: import('@noble/curves/abstract/weierstrass').ProjConstructor<bigint>,
+          point: ProjPointType<bigint>
+        ) => ProjPointType<bigint>)
+      | undefined;
+  } & {
+    hash: u.CHash;
+    hmac: (key: Uint8Array, ...messages: Uint8Array[]) => Uint8Array;
+    randomBytes: (bytesLength?: number) => Uint8Array;
+    lowS?: boolean;
+    bits2int?: (bytes: Uint8Array) => bigint;
+    bits2int_modN?: (bytes: Uint8Array) => bigint;
+  } & {
+    nByteLength: number;
+    nBitLength: number;
+  }
+> = curve.CURVE;
+const ProjectivePoint: ProjConstructor<bigint> = curve.ProjectivePoint;
+const Signature: SignatureConstructor = curve.Signature;
+const utils: {
+  normPrivateKeyToScalar: (key: u.PrivKey) => bigint;
+  isValidPrivateKey(privateKey: u.PrivKey): boolean;
+  randomPrivateKey: () => Uint8Array;
+  precompute: (windowSize?: number, point?: ProjPointType<bigint>) => ProjPointType<bigint>;
+} = curve.utils;
 export { CURVE, ProjectivePoint, Signature, utils };
 
 function extractX(bytes: Uint8Array): string {
@@ -125,7 +179,7 @@ function strip0x(hex: string) {
 }
 
 // seed generation
-export function grindKey(seed: Hex) {
+export function grindKey(seed: Hex): string {
   const _seed = ensureBytes(seed);
   const sha256mask = 2n ** 256n;
   const limit = sha256mask - mod(sha256mask, CURVE_ORDER);
@@ -258,8 +312,10 @@ export function pedersen(x: PedersenArg, y: PedersenArg): string {
 }
 
 // Same as hashChain, but computes hash even for single element and order is not revesed
-export const computeHashOnElements = (data: PedersenArg[], fn = pedersen) =>
-  [0, ...data, data.length].reduce((x, y) => fn(x, y));
+export const computeHashOnElements = (
+  data: PedersenArg[],
+  fn: typeof pedersen = pedersen
+): PedersenArg => [0, ...data, data.length].reduce((x, y) => fn(x, y));
 
 const MASK_250 = u.bitMask(250);
 export const keccak = (data: Uint8Array): bigint => u.bytesToNumberBE(keccak_256(data)) & MASK_250;
@@ -270,7 +326,7 @@ const sha256Num = (data: Uint8Array | string): bigint => u.bytesToNumberBE(sha25
 // export const Fp253 = Field(
 //   BigInt('14474011154664525231415395255581126252639794253786371766033694892385558855681')
 // ); // 2^253 + 2^199 + 1
-export const Fp251 = Field(
+export const Fp251: Readonly<IField<bigint> & Required<Pick<IField<bigint>, 'isOdd'>>> = Field(
   BigInt('3618502788666131213697322783095070105623107215331596699973092056135872020481')
 ); // 2^251 + 17 * 2^192 + 1
 
@@ -282,7 +338,7 @@ function poseidonRoundConstant(Fp: IField<bigint>, name: string, idx: number) {
 // NOTE: doesn't check eiginvalues and possible can create unsafe matrix. But any filtration here will break compatibility with starknet
 // Please use only if you really know what you doing.
 // https://eprint.iacr.org/2019/458.pdf Section 2.3 (Avoiding Insecure Matrices)
-export function _poseidonMDS(Fp: IField<bigint>, name: string, m: number, attempt = 0) {
+export function _poseidonMDS(Fp: IField<bigint>, name: string, m: number, attempt = 0): bigint[][] {
   const x_values: bigint[] = [];
   const y_values: bigint[] = [];
   for (let i = 0; i < m; i++) {
@@ -340,30 +396,34 @@ export function poseidonBasic(opts: PoseidonOpts, mds: bigint[][]): PoseidonFn {
   return res as PoseidonFn;
 }
 
-export function poseidonCreate(opts: PoseidonOpts, mdsAttempt = 0) {
+export function poseidonCreate(opts: PoseidonOpts, mdsAttempt = 0): PoseidonFn {
   const m = opts.rate + opts.capacity;
   if (!Number.isSafeInteger(mdsAttempt)) throw new Error(`Wrong mdsAttempt=${mdsAttempt}`);
   return poseidonBasic(opts, _poseidonMDS(opts.Fp, 'HadesMDS', m, mdsAttempt));
 }
 
-export const poseidonSmall = poseidonBasic(
+export const poseidonSmall: PoseidonFn = poseidonBasic(
   { Fp: Fp251, rate: 2, capacity: 1, roundsFull: 8, roundsPartial: 83 },
   MDS_SMALL
 );
 
-export function poseidonHash(x: bigint, y: bigint, fn = poseidonSmall): bigint {
+export function poseidonHash(x: bigint, y: bigint, fn: PoseidonFn = poseidonSmall): bigint {
   return fn([x, y, 2n])[0]!;
 }
 
-export function poseidonHashFunc(x: Uint8Array, y: Uint8Array, fn = poseidonSmall): Uint8Array {
+export function poseidonHashFunc(
+  x: Uint8Array,
+  y: Uint8Array,
+  fn: PoseidonFn = poseidonSmall
+): Uint8Array {
   return u.numberToVarBytesBE(poseidonHash(u.bytesToNumberBE(x), u.bytesToNumberBE(y), fn));
 }
 
-export function poseidonHashSingle(x: bigint, fn = poseidonSmall): bigint {
+export function poseidonHashSingle(x: bigint, fn: PoseidonFn = poseidonSmall): bigint {
   return fn([x, 0n, 1n])[0]!;
 }
 
-export function poseidonHashMany(values: bigint[], fn = poseidonSmall): bigint {
+export function poseidonHashMany(values: bigint[], fn: PoseidonFn = poseidonSmall): bigint {
   const { m, rate } = fn;
   if (!Array.isArray(values)) throw new Error('bigint array expected in values');
   const padded = Array.from(values); // copy
