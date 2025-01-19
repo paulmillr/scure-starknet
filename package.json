@@ -1,6 +1,6 @@
 {
   "name": "@scure/starknet",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Audited & minimal implementation of Starknet cryptography including Pedersen and Stark Curve",
   "files": [
     "lib",
@@ -16,16 +16,16 @@
     }
   },
   "dependencies": {
-    "@noble/curves": "~1.8.0",
-    "@noble/hashes": "~1.7.0"
+    "@noble/curves": "~1.8.1",
+    "@noble/hashes": "~1.7.1"
   },
   "devDependencies": {
     "@paulmillr/jsbt": "0.3.1",
-    "@scure/base": "~1.2.1",
+    "@scure/base": "~1.2.4",
     "@scure/bip32": "~1.6.0",
     "@scure/bip39": "~1.5.0",
     "fast-check": "3.0.0",
-    "micro-bmark": "0.3.1",
+    "micro-bmark": "0.4.0",
     "micro-should": "0.5.0",
     "prettier": "3.3.2",
     "typescript": "5.5.2"
