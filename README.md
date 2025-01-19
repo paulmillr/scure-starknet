@@ -22,7 +22,9 @@ Audited & minimal JS implementation of Starknet cryptography.
 
 ## Usage
 
-> npm install @scure/starknet
+> `npm install @scure/starknet`
+
+> `jsr add jsr:@scure/starknet`
 
 ```ts
 import * as starknet from '@scure/starknet';
