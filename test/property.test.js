@@ -1,18 +1,18 @@
-import { deepStrictEqual, throws } from 'node:assert';
-import { describe, should } from 'micro-should';
-import * as starknet from '../lib/esm/index.js';
 import * as fc from 'fast-check';
+import { describe, should } from 'micro-should';
+import { deepStrictEqual } from 'node:assert';
+import * as starknet from '../index.js';
 
-const FC_BIGINT = fc.bigInt(1n + 1n, starknet.CURVE.n - 1n);
+const FC_BIGINT = fc.bigInt(1n + 1n, starknet.Point.CURVE().n - 1n);
 const FC_MAX = fc.bigInt(0n, starknet.MAX_VALUE - 1n);
 
 describe('starknet property', () => {
   should('Point#toHex() roundtrip', () => {
     fc.assert(
       fc.property(FC_BIGINT, (x) => {
-        const point1 = starknet.ProjectivePoint.fromPrivateKey(x);
+        const point1 = starknet.Point.BASE.multiply(x);
         const hex = point1.toHex(true);
-        deepStrictEqual(starknet.ProjectivePoint.fromHex(hex).toHex(true), hex);
+        deepStrictEqual(starknet.Point.fromHex(hex).toHex(true), hex);
       })
     );
   });
@@ -21,7 +21,7 @@ describe('starknet property', () => {
     fc.assert(
       fc.property(FC_BIGINT, FC_BIGINT, (r, s) => {
         const sig = new starknet.Signature(r, s);
-        deepStrictEqual(starknet.Signature.fromCompact(sig.toCompactHex()), sig);
+        deepStrictEqual(starknet.Signature.fromHex(sig.toHex('compact'), 'compact'), sig);
       })
     );
   });
@@ -30,7 +30,7 @@ describe('starknet property', () => {
     fc.assert(
       fc.property(FC_BIGINT, FC_BIGINT, (r, s) => {
         const sig = new starknet.Signature(r, s);
-        deepStrictEqual(starknet.Signature.fromDER(sig.toDERHex()), sig);
+        deepStrictEqual(starknet.Signature.fromHex(sig.toHex('der'), 'der'), sig);
       })
     );
   });

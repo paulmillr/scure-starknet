@@ -1,8 +1,8 @@
-import { describe, should } from 'micro-should';
+import { should } from 'micro-should';
 import './basic.test.js';
-import './stark.test.js';
-import './property.test.js';
 import './poseidon.test.js';
+import './property.test.js';
+import './stark.test.js';
 
 // ESM is broken.
 import url from 'node:url';

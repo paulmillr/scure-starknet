@@ -3,37 +3,35 @@
   "version": "1.1.2",
   "description": "Audited & minimal implementation of Starknet cryptography including Pedersen and Stark Curve",
   "files": [
-    "lib",
+    "index.js",
+    "index.js.map",
+    "index.d.ts",
+    "index.d.ts.map",
     "index.ts"
   ],
-  "main": "lib/index.js",
-  "module": "lib/esm/index.js",
-  "types": "lib/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./lib/esm/index.js",
-      "require": "./lib/index.js"
-    }
-  },
   "dependencies": {
-    "@noble/curves": "~1.9.0",
-    "@noble/hashes": "~1.8.0"
+    "@noble/curves": "~2.0.0-beta.2",
+    "@noble/hashes": "~2.0.0-beta.4"
   },
   "devDependencies": {
-    "@paulmillr/jsbt": "0.3.3",
+    "@paulmillr/jsbt": "0.4.1",
     "@scure/base": "~1.2.4",
     "@scure/bip32": "~1.7.0",
     "@scure/bip39": "~1.6.0",
+    "@types/node": "24.2.1",
     "fast-check": "4.1.1",
     "micro-bmark": "0.4.2",
     "micro-should": "0.5.3",
-    "prettier": "3.5.3",
-    "typescript": "5.8.3"
+    "prettier": "3.6.2",
+    "typescript": "5.9.2"
   },
+  "engines": {
+    "node": ">= 20.19.0"
+  },
+  "type": "module",
+  "main": "index.js",
+  "module": "index.js",
   "sideEffects": false,
-  "browser": {
-    "crypto": false
-  },
   "author": "Paul Miller (https://paulmillr.com)",
   "license": "MIT",
   "homepage": "https://github.com/paulmillr/scure-starknet",
@@ -42,8 +40,8 @@
     "url": "git+https://github.com/paulmillr/scure-starknet.git"
   },
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.cjs.json",
-    "build:release": "npx jsbt esbuild test/build",
+    "build": "tsc",
+    "build:release": "npx --no @paulmillr/jsbt esbuild test/build",
     "bench": "cd test/benchmark; npm i; node index.js",
     "lint": "prettier --check index.ts test/*.test.js",
     "format": "prettier --write index.ts test/*.test.js",

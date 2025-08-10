@@ -1,11 +1,11 @@
-import { deepStrictEqual, throws } from 'node:assert';
-import { describe, should } from 'micro-should';
-import { utf8ToBytes } from '@noble/hashes/utils';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
 import * as bip32 from '@scure/bip32';
 import * as bip39 from '@scure/bip39';
-import * as starknet from '../lib/esm/index.js';
-import { default as sigVec } from './fixtures/rfc6979_signature_test_vector.json' with { type: 'json' };
+import { describe, should } from 'micro-should';
+import { deepStrictEqual, throws } from 'node:assert';
+import * as starknet from '../index.js';
 import { default as precomputedKeys } from './fixtures/keys_precomputed.json' with { type: 'json' };
+import { default as sigVec } from './fixtures/rfc6979_signature_test_vector.json' with { type: 'json' };
 
 describe('starknet', () => {
   should('custom keccak', () => {
@@ -64,7 +64,7 @@ describe('starknet', () => {
 
   describe('invalid signatures', () => {
     should('verify signature length', () => {
-      const ecOrder = starknet.CURVE.n;
+      const ecOrder = starknet.Point.CURVE().n;
       const maxEcdsaVal = 2n ** 251n;
       const maxMsgHash = maxEcdsaVal - 1n;
       const maxR = maxEcdsaVal - 1n;
@@ -305,7 +305,7 @@ describe('starknet', () => {
       558858382392827003930138586379728730695763862039474863361948210004201119180n,
       2440689354481625417078677634625227600823892606910345662891037256374285369343n
     );
-    deepStrictEqual(starknet.verify(sig2.toDERHex(), hashMsg2, pubKey), true);
+    deepStrictEqual(starknet.verify(sig2.toHex('der'), hashMsg2, pubKey), true);
   });
 });
 

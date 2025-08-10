@@ -1,8 +1,8 @@
-import { deepStrictEqual, throws } from 'node:assert';
+import { bytesToHex as hex } from '@noble/hashes/utils.js';
 import { describe, should } from 'micro-should';
-import * as starknet from '../lib/esm/index.js';
-import { bytesToHex as hex } from '@noble/hashes/utils';
+import { deepStrictEqual, throws } from 'node:assert';
 import * as fs from 'node:fs';
+import * as starknet from '../index.js';
 
 function parseTest(path) {
   let data = fs.readFileSync(path, 'ascii');

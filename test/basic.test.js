@@ -1,13 +1,13 @@
-import { deepStrictEqual, throws } from 'node:assert';
-import { describe, should } from 'micro-should';
-import * as starknet from '../lib/esm/index.js';
-import { default as issue2 } from './fixtures/issue2.json' with { type: 'json' };
 import * as bip32 from '@scure/bip32';
 import * as bip39 from '@scure/bip39';
+import { describe, should } from 'micro-should';
+import { deepStrictEqual, throws } from 'node:assert';
+import * as starknet from '../index.js';
+import { default as issue2 } from './fixtures/issue2.json' with { type: 'json' };
 
 describe('starknet basic', () => {
   should('Basic elliptic sanity check', () => {
-    const g1 = starknet.ProjectivePoint.BASE;
+    const g1 = starknet.Point.BASE;
     deepStrictEqual(
       g1.toAffine().x.toString(16),
       '1ef15c18599971b7beced415a40f0c7deacfd9b0d1819e03d723d8bc943cfca'
@@ -43,7 +43,7 @@ describe('starknet basic', () => {
       g32.toAffine().y.toString(16),
       '7e1b3ebac08924d2c26f409549191fcf94f3bf6f301ed3553e22dfb802f0686'
     );
-    const minus1 = g1.multiply(starknet.CURVE.n - 1n);
+    const minus1 = g1.multiply(starknet.Point.CURVE().n - 1n);
     deepStrictEqual(
       minus1.toAffine().x.toString(16),
       '1ef15c18599971b7beced415a40f0c7deacfd9b0d1819e03d723d8bc943cfca'
@@ -131,9 +131,9 @@ describe('starknet basic', () => {
   });
 
   should('Compressed keys', () => {
-    const G = starknet.ProjectivePoint.BASE;
-    const half = starknet.CURVE.n / 2n;
-    const last = starknet.CURVE.n;
+    const G = starknet.Point.BASE;
+    const half = starknet.Point.CURVE().n / 2n;
+    const last = starknet.Point.CURVE().n;
     const vectors = [
       1n,
       2n,
@@ -162,9 +162,9 @@ describe('starknet basic', () => {
       const uncompressed = v.toHex();
       const compressed = v.toHex(true);
       const exp = fixPoint(v);
-      deepStrictEqual(fixPoint(starknet.ProjectivePoint.fromHex(uncompressed)), exp);
-      deepStrictEqual(fixPoint(starknet.ProjectivePoint.fromHex(compressed)), exp);
-      deepStrictEqual(starknet.ProjectivePoint.fromHex(compressed).toHex(), uncompressed);
+      deepStrictEqual(fixPoint(starknet.Point.fromHex(uncompressed)), exp);
+      deepStrictEqual(fixPoint(starknet.Point.fromHex(compressed)), exp);
+      deepStrictEqual(starknet.Point.fromHex(compressed).toHex(), uncompressed);
     }
   });
 });

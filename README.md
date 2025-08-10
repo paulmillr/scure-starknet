@@ -18,6 +18,7 @@ Audited & minimal JS implementation of Starknet cryptography.
   [bip32](https://github.com/paulmillr/scure-bip32),
   [bip39](https://github.com/paulmillr/scure-bip39),
   [btc-signer](https://github.com/paulmillr/scure-btc-signer),
+  [sr25519](https://github.com/paulmillr/scure-sr25519),
   [starknet](https://github.com/paulmillr/scure-starknet)
 
 ## Usage
@@ -30,11 +31,12 @@ Audited & minimal JS implementation of Starknet cryptography.
 import * as starknet from '@scure/starknet';
 ```
 
-We support all major platforms and runtimes. For [Deno](https://deno.land), ensure to use
-[npm specifier](https://deno.land/manual@v1.28.0/node/npm_specifiers).
+We support all major platforms and runtimes.
 
-Note: the examples use the 'deepStrictEqual' function from the 'assert' built-in NodeJS module to compare values.<br>
-In Typescript, you must first install the '@types/node' npm package and then import like this: `import { deepStrictEqual } from 'assert';` <br>
+Note: the examples use the 'deepStrictEqual' function from the 'assert' built-in NodeJS module to compare values.
+
+In Typescript, you must first install the '@types/node' npm package and then import like this: `import { deepStrictEqual } from 'assert';`.
+
 In vanilla Javascript, just do this: `const { deepStrictEqual } = require("assert");` <br>
 
 ### Curve

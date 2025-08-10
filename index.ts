@@ -1,26 +1,28 @@
 /*! scure-starknet - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-import { getHash } from '@noble/curves/_shortw_utils';
-import { Field, type IField, invert, mod, validateField } from '@noble/curves/abstract/modular';
-import { poseidon } from '@noble/curves/abstract/poseidon';
-import type { Hex } from '@noble/curves/abstract/utils';
-import * as u from '@noble/curves/abstract/utils';
+import { Field, invert, mod, validateField, type IField } from '@noble/curves/abstract/modular.js';
+import { poseidon } from '@noble/curves/abstract/poseidon.js';
 import {
-  type CurveFn,
   DER,
-  type ProjConstructor,
-  type ProjPointType,
-  type SignatureConstructor,
-  type SignatureType,
+  ecdsa,
   weierstrass,
-} from '@noble/curves/abstract/weierstrass';
-import { sha256 } from '@noble/hashes/sha256';
-import { keccak_256 } from '@noble/hashes/sha3';
-import { utf8ToBytes } from '@noble/hashes/utils';
+  type ECDSASignature,
+  type ECDSASignatureCons,
+  type WeierstrassPoint,
+  type WeierstrassPointCons
+} from '@noble/curves/abstract/weierstrass.js';
+import * as u from '@noble/curves/utils.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { keccak_256 } from '@noble/hashes/sha3.js';
+import { utf8ToBytes } from '@noble/hashes/utils.js';
+
+
+type Hex = Uint8Array | string;
+type PrivKey = Hex | bigint;
 
 // Stark-friendly elliptic curve
 // https://docs.starkware.co/starkex/stark-curve.html
 
-type ProjectivePoint = ProjPointType<bigint>;
+type Point = WeierstrassPoint<bigint>;
 const CURVE_ORDER = BigInt(
   '3618502788666131213697322783095070105526743751716087489154079457884512865583'
 );
@@ -44,47 +46,62 @@ function hex0xToBytes(hex: string): Uint8Array {
   }
   return u.hexToBytes(hex);
 }
-const curve = weierstrass({
+
+const STARK_CURVE = {
   a: BigInt(1), // Params: a, b
   b: BigInt('3141592653589793238462643383279502884197169399375105820974944592307816406665'),
   // Field over which we'll do calculations; 2n**251n + 17n * 2n**192n + 1n
   // There is no efficient sqrt for field (P%4==1)
-  Fp: Field(BigInt('0x800000000000011000000000000000000000000000000000000000000000001')),
+  p: BigInt('0x800000000000011000000000000000000000000000000000000000000000001'),
   n: CURVE_ORDER, // Curve order, total count of valid points in the field.
-  nBitLength, // len(bin(N).replace('0b',''))
+ // nBitLength, // len(bin(N).replace('0b',''))
   // Base point (x, y) aka generator point
   Gx: BigInt('874739451078007766457464989774322083649278607533249481151382481072868806602'),
   Gy: BigInt('152666792071518830868575557812948353041420400780739481342941381225525861407'),
   h: BigInt(1), // cofactor
+};
+
+const STARK_ECDSA = {
   lowS: false, // Allow high-s signatures
-  ...getHash(sha256),
   // Custom truncation routines for stark curve
-  bits2int,
-  bits2int_modN: (bytes: Uint8Array): bigint => {
-    // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee11318 =>
-    // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee113180
-    const hex = u.bytesToNumberBE(bytes).toString(16); // toHex unpadded
-    if (hex.length === 63) bytes = hex0xToBytes(hex + '0'); // append trailing 0
-    return mod(bits2int(bytes), CURVE_ORDER);
-  },
-});
-export const _starkCurve: CurveFn = curve;
+   bits2int,
+   bits2int_modN: (bytes: Uint8Array): bigint => {
+     // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee11318 =>
+     // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee113180
+     const hex = u.bytesToNumberBE(bytes).toString(16); // toHex unpadded
+     if (hex.length === 63) bytes = hex0xToBytes(hex + '0'); // append trailing 0
+     return mod(bits2int(bytes), CURVE_ORDER);
+   },
+}
+
+
+
+const Point: WeierstrassPointCons<bigint> = weierstrass(STARK_CURVE);
+const ECDSA = ecdsa(Point, sha256, STARK_ECDSA);
+
+function toBytes(hex: Hex): Uint8Array {
+  return typeof hex === 'string' ? u.hexToBytes(hex) : hex;
+}
+
+function toBytesPriv(hex: PrivKey): Uint8Array {
+  return typeof hex === 'bigint' ? Point.Fn.toBytes(hex) : toBytes(hex);
+}
 
 function ensureBytes(hex: Hex): Uint8Array {
-  return u.ensureBytes('', typeof hex === 'string' ? hex0xToBytes(hex) : hex);
+  return u.abytes(typeof hex === 'string' ? hex0xToBytes(hex) : hex);
 }
 
 export function normalizePrivateKey(privKey: Hex): string {
   return u.bytesToHex(ensureBytes(privKey)).padStart(64, '0');
 }
 export function getPublicKey(privKey: Hex, isCompressed = false): Uint8Array {
-  return curve.getPublicKey(normalizePrivateKey(privKey), isCompressed);
+  return ECDSA.getPublicKey(u.hexToBytes(normalizePrivateKey(privKey)), isCompressed);
 }
 export function getSharedSecret(privKeyA: Hex, pubKeyB: Hex): Uint8Array {
-  return curve.getSharedSecret(normalizePrivateKey(privKeyA), pubKeyB);
+  return ECDSA.getSharedSecret(u.hexToBytes(normalizePrivateKey(privKeyA)), toBytes(pubKeyB));
 }
 
-function checkSignature(signature: SignatureType) {
+function checkSignature(signature: ECDSASignature) {
   // Signature.s checked inside weierstrass
   const { r, s } = signature;
   if (r < 0n || r >= MAX_VALUE) throw new Error(`Signature.r should be [1, ${MAX_VALUE})`);
@@ -100,74 +117,48 @@ function checkMessage(msgHash: Hex) {
   return bytes;
 }
 
-export function sign(msgHash: Hex, privKey: Hex, opts?: any): SignatureType {
-  const sig = curve.sign(checkMessage(msgHash), normalizePrivateKey(privKey), opts);
+export function sign(msgHash: Hex, privKey: Hex, opts?: any): ECDSASignature {
+  const sigBytes = ECDSA.sign(checkMessage(msgHash), u.hexToBytes(normalizePrivateKey(privKey)), { prehash: false, ...opts});
+  const sig = Signature.fromBytes(sigBytes);
   checkSignature(sig);
   return sig;
 }
 
-export function verify(signature: SignatureType | Hex, msgHash: Hex, pubKey: Hex): boolean {
+export function verify(signature: ECDSASignature | Hex, msgHash: Hex, pubKey: Hex): boolean {
   if (!(signature instanceof Signature)) {
     const bytes = ensureBytes(signature);
     try {
-      signature = Signature.fromDER(bytes);
+      signature = Signature.fromBytes(bytes, 'der');
     } catch (derError) {
       if (!(derError instanceof DER.Err)) throw derError;
-      signature = Signature.fromCompact(bytes);
+      signature = Signature.fromBytes(bytes, 'compact');
     }
   }
   checkSignature(signature);
-  return curve.verify(signature, checkMessage(msgHash), ensureBytes(pubKey));
+  return ECDSA.verify(signature.toBytes(), checkMessage(msgHash), ensureBytes(pubKey), {prehash: false});
 }
 
-const CURVE: Readonly<
-  import('@noble/curves/abstract/curve').BasicCurve<bigint> & {
-    a: bigint;
-    b: bigint;
-    allowedPrivateKeyLengths?: readonly number[];
-    wrapPrivateKey?: boolean;
-    endo?: {
-      beta: bigint;
-      splitScalar: (k: bigint) => {
-        k1neg: boolean;
-        k1: bigint;
-        k2neg: boolean;
-        k2: bigint;
-      };
-    };
-    isTorsionFree?:
-      | ((
-          c: import('@noble/curves/abstract/weierstrass').ProjConstructor<bigint>,
-          point: ProjPointType<bigint>
-        ) => boolean)
-      | undefined;
-    clearCofactor?:
-      | ((
-          c: import('@noble/curves/abstract/weierstrass').ProjConstructor<bigint>,
-          point: ProjPointType<bigint>
-        ) => ProjPointType<bigint>)
-      | undefined;
-  } & {
-    hash: u.CHash;
-    hmac: (key: Uint8Array, ...messages: Uint8Array[]) => Uint8Array;
-    randomBytes: (bytesLength?: number) => Uint8Array;
-    lowS?: boolean;
-    bits2int?: (bytes: Uint8Array) => bigint;
-    bits2int_modN?: (bytes: Uint8Array) => bigint;
-  } & {
-    nByteLength: number;
-    nBitLength: number;
-  }
-> = curve.CURVE;
-const ProjectivePoint: ProjConstructor<bigint> = curve.ProjectivePoint;
-const Signature: SignatureConstructor = curve.Signature;
+const Signature: ECDSASignatureCons = ECDSA.Signature;
 const utils: {
-  normPrivateKeyToScalar: (key: u.PrivKey) => bigint;
-  isValidPrivateKey(privateKey: u.PrivKey): boolean;
+  normPrivateKeyToScalar: (key: PrivKey) => bigint;
+  isValidPrivateKey(privateKey: PrivKey): boolean;
   randomPrivateKey: () => Uint8Array;
-  precompute: (windowSize?: number, point?: ProjPointType<bigint>) => ProjPointType<bigint>;
-} = curve.utils;
-export { CURVE, ProjectivePoint, Signature, utils };
+  precompute: (windowSize?: number, point?: WeierstrassPoint<bigint>) => WeierstrassPoint<bigint>;
+} = {
+   normPrivateKeyToScalar: (key: PrivKey): bigint => {
+    const bytes = toBytesPriv(key);
+    const scalar = Point.Fn.fromBytes(bytes);
+    if (!Point.Fn.isValidNot0(scalar)) throw new Error('wrong secret scalar');
+    return scalar;
+  },
+  isValidPrivateKey: (key)=> ECDSA.utils.isValidSecretKey(toBytesPriv(key)),
+  randomPrivateKey: ECDSA.utils.randomSecretKey,
+  precompute(windowSize = 8, point = Point.BASE) {
+    point.precompute(windowSize, false);
+    return point;
+  },
+};
+export { Point, Signature, utils };
 
 function extractX(bytes: Uint8Array): string {
   const hex = u.bytesToHex(bytes.subarray(1));
@@ -208,8 +199,8 @@ export function getAccountPath(
   ethereumAddress: string,
   index: number
 ): string {
-  const layerNum = int31(sha256Num(layer));
-  const applicationNum = int31(sha256Num(application));
+  const layerNum = int31(sha256Num(utf8ToBytes(layer)));
+  const applicationNum = int31(sha256Num(utf8ToBytes(application)));
   const eth = u.hexToNumber(strip0x(ethereumAddress));
   return `m/2645'/${layerNum}'/${applicationNum}'/${int31(eth)}'/${int31(eth >> 31n)}'/${index}`;
 }
@@ -226,35 +217,35 @@ export function getAccountPath(
 // https://docs.starkware.co/starkex/pedersen-hash-function.html
 // https://github.com/starkware-libs/starkex-for-spot-trading/blob/607f0b4ce507e1d95cd018d206a2797f6ba4aab4/src/starkware/crypto/starkware/crypto/signature/nothing_up_my_sleeve_gen.py
 const PEDERSEN_POINTS = [
-  new ProjectivePoint(
+  new Point(
     2089986280348253421170679821480865132823066470938446095505822317253594081284n,
     1713931329540660377023406109199410414810705867260802078187082345529207694986n,
     1n
   ),
-  new ProjectivePoint(
+  new Point(
     996781205833008774514500082376783249102396023663454813447423147977397232763n,
     1668503676786377725805489344771023921079126552019160156920634619255970485781n,
     1n
   ),
-  new ProjectivePoint(
+  new Point(
     2251563274489750535117886426533222435294046428347329203627021249169616184184n,
     1798716007562728905295480679789526322175868328062420237419143593021674992973n,
     1n
   ),
-  new ProjectivePoint(
+  new Point(
     2138414695194151160943305727036575959195309218611738193261179310511854807447n,
     113410276730064486255102093846540133784865286929052426931474106396135072156n,
     1n
   ),
-  new ProjectivePoint(
+  new Point(
     2379962749567351885752724891227938183011949129833673362440656643086021394946n,
     776496453633298175483985398648758586525933812536653089401905292063708816422n,
     1n
   ),
 ] as const;
 
-function pedersenPrecompute(p1: ProjectivePoint, p2: ProjectivePoint): ProjectivePoint[] {
-  const out: ProjectivePoint[] = [];
+function pedersenPrecompute(p1: Point, p2: Point): Point[] {
+  const out: Point[] = [];
   let p = p1;
   for (let i = 0; i < 248; i++) {
     out.push(p);
@@ -283,7 +274,7 @@ function pedersenArg(arg: PedersenArg): bigint {
   } else {
     value = u.bytesToNumberBE(ensureBytes(arg));
   }
-  if (!(0n <= value && value < curve.CURVE.Fp.ORDER))
+  if (!(0n <= value && value < Point.Fp.ORDER))
     throw new Error(`PedersenArg should be 0 <= value < CURVE.P: ${value}`); // [0..Fp)
   return value;
 }
@@ -291,7 +282,7 @@ function pedersenArg(arg: PedersenArg): bigint {
 /**
  * Warning: Not algorithmic constant-time.
  */
-function pedersenSingle(point: ProjectivePoint, value: PedersenArg, constants: ProjectivePoint[]) {
+function pedersenSingle(point: Point, value: PedersenArg, constants: Point[]) {
   let x = pedersenArg(value);
   for (let j = 0; j < 252; j++) {
     const pt = constants[j];
@@ -305,10 +296,10 @@ function pedersenSingle(point: ProjectivePoint, value: PedersenArg, constants: P
 
 // shift_point + x_low * P_0 + x_high * P1 + y_low * P2  + y_high * P3
 export function pedersen(x: PedersenArg, y: PedersenArg): string {
-  let point: ProjectivePoint = PEDERSEN_POINTS[0];
+  let point: Point = PEDERSEN_POINTS[0];
   point = pedersenSingle(point, x, PEDERSEN_POINTS1);
   point = pedersenSingle(point, y, PEDERSEN_POINTS2);
-  return extractX(point.toRawBytes(true));
+  return extractX(point.toBytes(true));
 }
 
 // Same as hashChain, but computes hash even for single element and order is not revesed
@@ -319,7 +310,7 @@ export const computeHashOnElements = (
 
 const MASK_250 = u.bitMask(250);
 export const keccak = (data: Uint8Array): bigint => u.bytesToNumberBE(keccak_256(data)) & MASK_250;
-const sha256Num = (data: Uint8Array | string): bigint => u.bytesToNumberBE(sha256(data));
+const sha256Num = (data: Uint8Array): bigint => u.bytesToNumberBE(sha256(data));
 
 // Poseidon hash
 // Unused for now
@@ -331,7 +322,7 @@ export const Fp251: Readonly<IField<bigint> & Required<Pick<IField<bigint>, 'isO
 ); // 2^251 + 17 * 2^192 + 1
 
 function poseidonRoundConstant(Fp: IField<bigint>, name: string, idx: number) {
-  const val = Fp.fromBytes(sha256(utf8ToBytes(`${name}${idx}`)));
+  const val = Fp.fromBytes(sha256(utf8ToBytes(`${name}${idx}`)), true);
   return Fp.create(val);
 }
 
