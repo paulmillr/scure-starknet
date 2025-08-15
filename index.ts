@@ -8,13 +8,12 @@ import {
   type ECDSASignature,
   type ECDSASignatureCons,
   type WeierstrassPoint,
-  type WeierstrassPointCons
+  type WeierstrassPointCons,
 } from '@noble/curves/abstract/weierstrass.js';
 import * as u from '@noble/curves/utils.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { utf8ToBytes } from '@noble/hashes/utils.js';
-
 
 type Hex = Uint8Array | string;
 type PrivKey = Hex | bigint;
@@ -54,7 +53,7 @@ const STARK_CURVE = {
   // There is no efficient sqrt for field (P%4==1)
   p: BigInt('0x800000000000011000000000000000000000000000000000000000000000001'),
   n: CURVE_ORDER, // Curve order, total count of valid points in the field.
- // nBitLength, // len(bin(N).replace('0b',''))
+  // nBitLength, // len(bin(N).replace('0b',''))
   // Base point (x, y) aka generator point
   Gx: BigInt('874739451078007766457464989774322083649278607533249481151382481072868806602'),
   Gy: BigInt('152666792071518830868575557812948353041420400780739481342941381225525861407'),
@@ -64,17 +63,15 @@ const STARK_CURVE = {
 const STARK_ECDSA = {
   lowS: false, // Allow high-s signatures
   // Custom truncation routines for stark curve
-   bits2int,
-   bits2int_modN: (bytes: Uint8Array): bigint => {
-     // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee11318 =>
-     // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee113180
-     const hex = u.bytesToNumberBE(bytes).toString(16); // toHex unpadded
-     if (hex.length === 63) bytes = hex0xToBytes(hex + '0'); // append trailing 0
-     return mod(bits2int(bytes), CURVE_ORDER);
-   },
-}
-
-
+  bits2int,
+  bits2int_modN: (bytes: Uint8Array): bigint => {
+    // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee11318 =>
+    // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee113180
+    const hex = u.bytesToNumberBE(bytes).toString(16); // toHex unpadded
+    if (hex.length === 63) bytes = hex0xToBytes(hex + '0'); // append trailing 0
+    return mod(bits2int(bytes), CURVE_ORDER);
+  },
+};
 
 const Point: WeierstrassPointCons<bigint> = weierstrass(STARK_CURVE);
 const ECDSA = ecdsa(Point, sha256, STARK_ECDSA);
@@ -118,7 +115,10 @@ function checkMessage(msgHash: Hex) {
 }
 
 export function sign(msgHash: Hex, privKey: Hex, opts?: any): ECDSASignature {
-  const sigBytes = ECDSA.sign(checkMessage(msgHash), u.hexToBytes(normalizePrivateKey(privKey)), { prehash: false, ...opts});
+  const sigBytes = ECDSA.sign(checkMessage(msgHash), u.hexToBytes(normalizePrivateKey(privKey)), {
+    prehash: false,
+    ...opts,
+  });
   const sig = Signature.fromBytes(sigBytes);
   checkSignature(sig);
   return sig;
@@ -135,7 +135,9 @@ export function verify(signature: ECDSASignature | Hex, msgHash: Hex, pubKey: He
     }
   }
   checkSignature(signature);
-  return ECDSA.verify(signature.toBytes(), checkMessage(msgHash), ensureBytes(pubKey), {prehash: false});
+  return ECDSA.verify(signature.toBytes(), checkMessage(msgHash), ensureBytes(pubKey), {
+    prehash: false,
+  });
 }
 
 const Signature: ECDSASignatureCons = ECDSA.Signature;
@@ -145,13 +147,13 @@ const utils: {
   randomPrivateKey: () => Uint8Array;
   precompute: (windowSize?: number, point?: WeierstrassPoint<bigint>) => WeierstrassPoint<bigint>;
 } = {
-   normPrivateKeyToScalar: (key: PrivKey): bigint => {
+  normPrivateKeyToScalar: (key: PrivKey): bigint => {
     const bytes = toBytesPriv(key);
     const scalar = Point.Fn.fromBytes(bytes);
     if (!Point.Fn.isValidNot0(scalar)) throw new Error('wrong secret scalar');
     return scalar;
   },
-  isValidPrivateKey: (key)=> ECDSA.utils.isValidSecretKey(toBytesPriv(key)),
+  isValidPrivateKey: (key) => ECDSA.utils.isValidSecretKey(toBytesPriv(key)),
   randomPrivateKey: ECDSA.utils.randomSecretKey,
   precompute(windowSize = 8, point = Point.BASE) {
     point.precompute(windowSize, false);
