@@ -189,15 +189,21 @@ should('Poseidon 2', () => {
     '01f87cbb9c58139605384d0f0df49b446600af020aa9dac92301d45c96d78c0a'
   );
   eql(
-    bytesToHex(starknet.poseidonHashFunc(new Uint8Array(32).fill(255), new Uint8Array(32).fill(255))),
+    bytesToHex(
+      starknet.poseidonHashFunc(new Uint8Array(32).fill(255), new Uint8Array(32).fill(255))
+    ),
     '05fd546b5ee3bcbbcbb733ed90bfc33033169d6765ac37bba71794a11cbb51a6'
   );
   eql(
-    bytesToHex(starknet.poseidonHashFunc(new Uint8Array(64).fill(255), new Uint8Array(64).fill(255))),
+    bytesToHex(
+      starknet.poseidonHashFunc(new Uint8Array(64).fill(255), new Uint8Array(64).fill(255))
+    ),
     '07dba6b4d94b3e32697afe0825d6dac2dccafd439f7806a9575693c93735596b'
   );
   eql(
-    bytesToHex(starknet.poseidonHashFunc(new Uint8Array(256).fill(255), new Uint8Array(256).fill(255))),
+    bytesToHex(
+      starknet.poseidonHashFunc(new Uint8Array(256).fill(255), new Uint8Array(256).fill(255))
+    ),
     '02f048581901865201dad701a5653d946b961748ec770fc11139aa7c06a9432a'
   );
 });
