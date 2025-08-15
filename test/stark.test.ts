@@ -4,8 +4,8 @@ import * as bip39 from '@scure/bip39';
 import { describe, should } from 'micro-should';
 import { deepStrictEqual, throws } from 'node:assert';
 import * as starknet from '../index.js';
-import { default as precomputedKeys } from './fixtures/keys_precomputed.json' with { type: 'json' };
-import { default as sigVec } from './fixtures/rfc6979_signature_test_vector.json' with { type: 'json' };
+import { default as precomputedKeys } from './vectors/keys_precomputed.json' with { type: 'json' };
+import { default as sigVec } from './vectors/rfc6979_signature_test_vector.json' with { type: 'json' };
 
 describe('starknet', () => {
   should('custom keccak', () => {
@@ -309,8 +309,4 @@ describe('starknet', () => {
   });
 });
 
-// ESM is broken.
-import url from 'node:url';
-if (import.meta.url === url.pathToFileURL(process.argv[1]).href) {
-  should.run();
-}
+should.runWhen(import.meta.url);

@@ -29,11 +29,11 @@
     "build": "tsc",
     "build:release": "npx --no @paulmillr/jsbt esbuild test/build",
     "bench": "cd test/benchmark; npm i; node index.js",
-    "lint": "prettier --check index.ts test/*.test.js",
-    "format": "prettier --write index.ts test/*.test.js",
-    "test": "node test/index.js",
-    "test:bun": "bun test/index.js",
-    "test:deno": "deno --allow-env --allow-read test/index.js"
+    "format": "prettier --write index.ts test/*.test.ts",
+    "test": "node test/index.ts",
+    "test:bun": "bun test/index.ts",
+    "test:deno": "deno --allow-env --allow-read test/index.ts",
+    "test:node20": "cd test; npx tsc; node compiled/test/index.js"
   },
   "engines": {
     "node": ">= 20.19.0"
