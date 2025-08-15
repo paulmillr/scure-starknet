@@ -1,6 +1,8 @@
-build/
-node_modules/
+node_modules
+*.tgz
 /*.js
-/*.js.map
-/*.ts
-/*.d.ts.map
+*.js.map
+*.d.ts
+*.d.ts.map
+/test/build
+/test/compiled

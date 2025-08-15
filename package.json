@@ -19,25 +19,11 @@
     "@scure/bip32": "~1.7.0",
     "@scure/bip39": "~1.6.0",
     "@types/node": "24.2.1",
-    "fast-check": "4.1.1",
+    "fast-check": "4.2.0",
     "micro-bmark": "0.4.2",
     "micro-should": "0.5.3",
     "prettier": "3.6.2",
     "typescript": "5.9.2"
-  },
-  "engines": {
-    "node": ">= 20.19.0"
-  },
-  "type": "module",
-  "main": "index.js",
-  "module": "index.js",
-  "sideEffects": false,
-  "author": "Paul Miller (https://paulmillr.com)",
-  "license": "MIT",
-  "homepage": "https://github.com/paulmillr/scure-starknet",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/paulmillr/scure-starknet.git"
   },
   "scripts": {
     "build": "tsc",
@@ -49,6 +35,9 @@
     "test:bun": "bun test/index.js",
     "test:deno": "deno --allow-env --allow-read test/index.js"
   },
+  "engines": {
+    "node": ">= 20.19.0"
+  },
   "keywords": [
     "starknet",
     "stark curve",
@@ -58,5 +47,17 @@
     "starkex",
     "cryptography"
   ],
-  "funding": "https://paulmillr.com/funding/"
+  "homepage": "https://paulmillr.com/noble/#scure",
+  "funding": "https://paulmillr.com/funding/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paulmillr/scure-starknet.git"
+  },
+  "type": "module",
+  "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "sideEffects": false,
+  "author": "Paul Miller (https://paulmillr.com)",
+  "license": "MIT"
 }
