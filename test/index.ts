@@ -1,4 +1,4 @@
-import { should } from 'micro-should';
+import { should } from '@paulmillr/jsbt/test.js';
 import './basic.test.ts';
 import './poseidon.test.ts';
 import './property.test.ts';

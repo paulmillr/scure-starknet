@@ -1,5 +1,5 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { describe, should } from 'micro-should';
+import { describe, should } from '@paulmillr/jsbt/test.js';
 import { deepStrictEqual as eql, throws } from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { dirname, join as joinPath } from 'node:path';

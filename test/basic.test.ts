@@ -1,6 +1,6 @@
 import * as bip32 from '@scure/bip32';
 import * as bip39 from '@scure/bip39';
-import { describe, should } from 'micro-should';
+import { describe, should } from '@paulmillr/jsbt/test.js';
 import { deepStrictEqual, throws } from 'node:assert';
 import * as starknet from '../index.js';
 import { default as issue2 } from './vectors/issue2.json' with { type: 'json' };

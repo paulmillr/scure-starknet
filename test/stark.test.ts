@@ -1,7 +1,7 @@
 import { utf8ToBytes } from '@noble/hashes/utils.js';
 import * as bip32 from '@scure/bip32';
 import * as bip39 from '@scure/bip39';
-import { describe, should } from 'micro-should';
+import { describe, should } from '@paulmillr/jsbt/test.js';
 import { deepStrictEqual, throws } from 'node:assert';
 import * as starknet from '../index.js';
 import { default as precomputedKeys } from './vectors/keys_precomputed.json' with { type: 'json' };
