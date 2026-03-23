@@ -4,7 +4,7 @@ import * as stark from '../../index.js';
 
 (async () => {
   // console.log(`\x1b[36mstark\x1b[0m`);
-  await bench('init', () => stark.utils.precompute(8), 1);
+  await bench('init', () => stark.utils.precompute(8), { mode: 'runOnce' });
   const d = (() => {
     const priv = '2dccce1da22003777062ee0870e9881b460a8b7eca276870f57c601f182136c';
     const msg = 'c465dd6b1bbffdb05442eb17f5ca38ad1aa78a6f56bf4415bdee219114a47';

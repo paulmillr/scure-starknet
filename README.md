@@ -42,6 +42,9 @@ In vanilla Javascript, just do this: `const { deepStrictEqual } = require("asser
 ### Curve
 
 ```ts
+import { deepStrictEqual } from 'node:assert';
+import * as starknet from '@scure/starknet';
+
 // Signing and verification
 const privateKey = '2dccce1da22003777062ee0870e9881b460a8b7eca276870f57c601f182136c';
 const publicKey = starknet.getPublicKey(privateKey);
@@ -64,7 +67,7 @@ deepStrictEqual(
     '0x3d937c035c878245caf64531a5756109c53068da139362728feb561405371cb',
     '0x208a0a10250e382e1e4bbe2880906c2791bf6275695e02fbbc6aeff9cd8b31a'
   ),
-  '30e480bed5fe53fa909cc0f8c4d99b8f9f2c016be4c41e13a4848797979c662'
+  '0x30e480bed5fe53fa909cc0f8c4d99b8f9f2c016be4c41e13a4848797979c662'
 );
 
 // Create private key from ethereum signature
@@ -79,25 +82,28 @@ deepStrictEqual(
 
 ### Private key from mnemonic
 
+> `npm install @scure/bip32 @scure/bip39`
+
 ```ts
+import { deepStrictEqual } from 'node:assert';
 import * as bip32 from '@scure/bip32';
 import * as bip39 from '@scure/bip39';
+import * as starknet from '@scure/starknet';
 
-should('Seed derivation (example)', () => {
-  const layer = 'starknet';
-  const application = 'starkdeployement';
-  const mnemonic =
-    'range mountain blast problem vibrant void vivid doctor cluster enough melody ' +
-    'salt layer language laptop boat major space monkey unit glimpse pause change vibrant';
-  const ethAddress = '0xa4864d977b944315389d1765ffa7e66F74ee8cd7';
-  const hdKey = bip32.HDKey.fromMasterSeed(bip39.mnemonicToSeedSync(mnemonic)).derive(
-    starknet.getAccountPath(layer, application, ethAddress, 0)
-  );
-  deepStrictEqual(
-    starknet.grindKey(hdKey.privateKey),
-    '6cf0a8bf113352eb863157a45c5e5567abb34f8d32cddafd2c22aa803f4892c'
-  );
-});
+const layer = 'starkex';
+const application = 'starkdeployement';
+const mnemonic =
+  'range mountain blast problem vibrant void vivid doctor cluster enough melody ' +
+  'salt layer language laptop boat major space monkey unit glimpse pause change vibrant';
+const ethAddress = '0xa4864d977b944315389d1765ffa7e66F74ee8cd7';
+const hdKey = bip32.HDKey.fromMasterSeed(bip39.mnemonicToSeedSync(mnemonic)).derive(
+  starknet.getAccountPath(layer, application, ethAddress, 0)
+);
+if (!hdKey.privateKey) throw new Error('expected hdKey.privateKey');
+deepStrictEqual(
+  starknet.grindKey(hdKey.privateKey),
+  '6cf0a8bf113352eb863157a45c5e5567abb34f8d32cddafd2c22aa803f4892c'
+);
 ```
 
 ### Poseidon
@@ -119,10 +125,13 @@ function poseidonHashMany(values: bigint[], fn?: PoseidonFn): bigint;
 ### Utils
 
 ```ts
-// Hash chain
+import { deepStrictEqual } from 'node:assert';
+import * as starknet from '@scure/starknet';
+
+// Hash list of elements (same as hashChain, but includes single values and preserves order)
 deepStrictEqual(
-  starknet.hashChain([1, 2, 3]),
-  '5d9d62d4040b977c3f8d2389d494e4e89a96a8b45c44b1368f1cc6ec5418915'
+  starknet.computeHashOnElements([1, 2, 3]),
+  '0xf9d95fbf356fbeda26538c92f7040abe51bf142350f73c9ee5ba7c660bae71'
 );
 
 // Key grinding
@@ -133,7 +142,7 @@ deepStrictEqual(
 
 // Starknet keccak
 deepStrictEqual(
-  starknet.keccak(utf8.decode('hello')),
+  starknet.keccak(new TextEncoder().encode('hello')),
   0x8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8n
 );
 ```
@@ -151,18 +160,14 @@ The library has been independently audited:
 
 ## Speed
 
-Benchmark results on Apple M2 with node v20:
+> `npm run bench`
+
+Benchmark results on Apple M4:
 
 ```
-stark
-init x 33 ops/sec @ 30ms/op
-pedersen
-├─old x 86 ops/sec @ 11ms/op # @starkware-industries/starkware-crypto-utils
-└─scure x 620 ops/sec @ 1ms/op
-poseidon x 7,162 ops/sec @ 139μs/op
-verify
-├─old x 303 ops/sec @ 3ms/op
-└─scure x 485 ops/sec @ 2ms/op
+pedersen x 1,131 ops/sec @ 883μs/op
+poseidon x 10,916 ops/sec @ 91μs/op
+verify x 820 ops/sec @ 1ms/op
 ```
 
 ## Contributing & testing

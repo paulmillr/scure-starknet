@@ -1,7 +1,7 @@
 import { utf8ToBytes } from '@noble/hashes/utils.js';
+import { describe, should } from '@paulmillr/jsbt/test.js';
 import * as bip32 from '@scure/bip32';
 import * as bip39 from '@scure/bip39';
-import { describe, should } from '@paulmillr/jsbt/test.js';
 import { deepStrictEqual, throws } from 'node:assert';
 import * as starknet from '../index.js';
 import { default as precomputedKeys } from './vectors/keys_precomputed.json' with { type: 'json' };
@@ -60,6 +60,45 @@ describe('starknet', () => {
       deepStrictEqual(s.toString(16), v.s, 's equality');
       deepStrictEqual(starknet.verify(sig, v.msg, publicKey), true, 'verify');
     }
+  });
+
+  should('validator constructors', () => {
+    const privKey = '1';
+    const pubKey = starknet.getPublicKey(privKey);
+    throws(() => starknet.sign(starknet.MAX_VALUE.toString(16), privKey), RangeError);
+    throws(
+      () => starknet.verify(new starknet.Signature(starknet.MAX_VALUE, 1n), '1', pubKey),
+      RangeError
+    );
+    throws(() => starknet.utils.normPrivateKeyToScalar('00'.repeat(32)), RangeError);
+    throws(() => starknet.ethSigToPrivate('0x1234'), RangeError);
+    throws(() => starknet.pedersen(10.1, 10.1), RangeError);
+    throws(() => starknet.pedersen(false, false), Error);
+    throws(
+      () =>
+        starknet.poseidonCreate({
+          Fp: starknet.Fp251,
+          rate: 1.5,
+          capacity: 1,
+          roundsFull: 8,
+          roundsPartial: 83,
+        }),
+      RangeError
+    );
+    throws(
+      () =>
+        starknet.poseidonCreate(
+          {
+            Fp: starknet.Fp251,
+            rate: 2,
+            capacity: 1,
+            roundsFull: 8,
+            roundsPartial: 83,
+          },
+          '0'
+        ),
+      TypeError
+    );
   });
 
   describe('invalid signatures', () => {
