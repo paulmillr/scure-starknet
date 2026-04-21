@@ -208,4 +208,15 @@ should('Poseidon 2', () => {
   );
 });
 
+should('Poseidon validators reject odd roundsFull', () => {
+  const opts = { Fp: starknet.Fp251, rate: 2, capacity: 1, roundsFull: 7, roundsPartial: 83 };
+  const mds = [
+    [3n, 1n, 1n],
+    [1n, -1n, 1n],
+    [1n, 1n, -2n],
+  ];
+  throws(() => starknet.poseidonCreate(opts), RangeError);
+  throws(() => starknet.poseidonBasic(opts, mds), RangeError);
+});
+
 should.runWhen(import.meta.url);

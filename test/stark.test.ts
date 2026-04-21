@@ -62,16 +62,75 @@ describe('starknet', () => {
     }
   });
 
+  should('verify accepts recovered signatures only with explicit format', () => {
+    const msgHash = '1';
+    const privKey = '2';
+    const pubKey = starknet.getPublicKey(privKey);
+    const recovered = starknet.sign(msgHash, privKey).addRecoveryBit(0).toHex('recovered');
+    throws(() => starknet.verify(recovered, msgHash, pubKey), RangeError);
+    deepStrictEqual(starknet.verify(recovered, msgHash, pubKey, { format: 'recovered' }), true);
+  });
+
+  should('sign accepts explicit signature formats and still returns Signature objects', () => {
+    const msgHash = '1';
+    const privKey = '2';
+    const pubKey = starknet.getPublicKey(privKey);
+    const compact = starknet.sign(msgHash, privKey, { format: 'compact' });
+    deepStrictEqual(compact instanceof starknet.Signature, true);
+    deepStrictEqual(
+      starknet.verify(compact.toBytes('compact'), msgHash, pubKey, { format: 'compact' }),
+      true
+    );
+    const der = starknet.sign(msgHash, privKey, { format: 'der' });
+    deepStrictEqual(der instanceof starknet.Signature, true);
+    deepStrictEqual(starknet.verify(der.toBytes('der'), msgHash, pubKey, { format: 'der' }), true);
+    const recovered = starknet.sign(msgHash, privKey, { format: 'recovered' });
+    deepStrictEqual(recovered instanceof starknet.Signature, true);
+    deepStrictEqual(
+      starknet.verify(recovered.toBytes('recovered'), msgHash, pubKey, { format: 'recovered' }),
+      true
+    );
+  });
+
+  should('getSharedSecret accepts 0x-prefixed peer public keys', () => {
+    const privA = '1';
+    const pub = starknet.getPublicKey('2');
+    const pubHex = Buffer.from(pub).toString('hex');
+    const expected = Buffer.from(starknet.getSharedSecret(privA, pubHex)).toString('hex');
+    const actual = Buffer.from(starknet.getSharedSecret(privA, `0x${pubHex}`)).toString('hex');
+    deepStrictEqual(actual, expected);
+  });
+
   should('validator constructors', () => {
     const privKey = '1';
     const pubKey = starknet.getPublicKey(privKey);
     throws(() => starknet.sign(starknet.MAX_VALUE.toString(16), privKey), RangeError);
+    throws(() => starknet.sign('1', privKey, { prehash: true }), TypeError);
     throws(
       () => starknet.verify(new starknet.Signature(starknet.MAX_VALUE, 1n), '1', pubKey),
       RangeError
     );
     throws(() => starknet.utils.normPrivateKeyToScalar('00'.repeat(32)), RangeError);
     throws(() => starknet.ethSigToPrivate('0x1234'), RangeError);
+    {
+      const ok =
+        '0x21fbf0696d5e0aa2ef41a2b4ffb623bcaf070461d61cf7251c74161f82fec3a43' +
+        '70854bc0a34b3ab487c1bc021cd318c734c51ae29374f2beb0e6f2dd49b4bf41c';
+      const malformed = '0x' + ok.slice(2, 66) + 'z'.repeat(ok.length - 2 - 64);
+      throws(() => starknet.ethSigToPrivate(malformed), RangeError);
+    }
+    throws(() => starknet.ethSigToPrivate(new Uint8Array(65) as any), TypeError);
+    throws(
+      () => starknet.getAccountPath('starkex', 'starkdeployement', '0x1', '0' as any),
+      TypeError
+    );
+    throws(() => starknet.getAccountPath('starkex', 'starkdeployement', '0x1', 0.5), RangeError);
+    throws(() => starknet.getAccountPath('starkex', 'starkdeployement', '0x1', -1), RangeError);
+    throws(
+      () => starknet.getAccountPath('starkex', 'starkdeployement', '0x1', 2 ** 31),
+      RangeError
+    );
+    deepStrictEqual(starknet.utils.isValidPrivateKey('zz'), false);
     throws(() => starknet.pedersen(10.1, 10.1), RangeError);
     throws(() => starknet.pedersen(false, false), Error);
     throws(

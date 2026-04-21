@@ -7,21 +7,26 @@ import {
   weierstrass,
   type ECDSASignature,
   type ECDSASignatureCons,
+  type ECDSASignatureFormat,
+  type ECDSASignOpts,
   type WeierstrassPoint,
   type WeierstrassPointCons,
 } from '@noble/curves/abstract/weierstrass.js';
 import * as u from '@noble/curves/utils.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { keccak_256 } from '@noble/hashes/sha3.js';
-import { utf8ToBytes } from '@noble/hashes/utils.js';
+import { utf8ToBytes, type TArg, type TRet } from '@noble/hashes/utils.js';
 
 type Hex = Uint8Array | string;
 type PrivKey = Hex | bigint;
+type SignOpts = Omit<ECDSASignOpts, 'prehash'> & { prehash?: false };
+type VerifyOpts = { format?: ECDSASignatureFormat };
 
 // Stark-friendly elliptic curve
 // https://docs.starkware.co/starkex/stark-curve.html
 
 type _Point = WeierstrassPoint<bigint>;
+// Stark curve subgroup order reused for scalar reduction, inversion, and key grinding.
 const CURVE_ORDER = /* @__PURE__ */ BigInt(
   '3618502788666131213697322783095070105526743751716087489154079457884512865583'
 );
@@ -31,15 +36,17 @@ export const MAX_VALUE: bigint = /* @__PURE__ */ BigInt(
   '0x800000000000000000000000000000000000000000000000000000000000000'
 );
 
+// qlen for RFC 6979 bits2int truncation on the 252-bit Stark subgroup order.
 const nBitLength = 252;
-function bits2int(bytes: Uint8Array): bigint {
-  while (bytes[0] === 0) bytes = bytes.subarray(1); // strip leading 0s
+function bits2int(bytes: TArg<Uint8Array>): bigint {
+  // Strip leading 0s so padded hashes don't get truncated as 256-bit inputs.
+  while (bytes[0] === 0) bytes = bytes.subarray(1);
   // Copy-pasted from weierstrass.ts
   const delta = bytes.length * 8 - nBitLength;
   const num = u.bytesToNumberBE(bytes);
   return delta > 0 ? num >> BigInt(delta) : num;
 }
-function hex0xToBytes(hex: string): Uint8Array {
+function hex0xToBytes(hex: string): TRet<Uint8Array> {
   if (typeof hex === 'string') {
     hex = strip0x(hex); // allow 0x prefix
     if (hex.length & 1) hex = '0' + hex; // allow unpadded hex
@@ -47,6 +54,7 @@ function hex0xToBytes(hex: string): Uint8Array {
   return u.hexToBytes(hex);
 }
 
+// Match the StarkWare curve tuple used by the reference signer and Pedersen parameter generator.
 const STARK_CURVE = /* @__PURE__ */ (() => ({
   a: BigInt(1), // Params: a, b
   b: BigInt('3141592653589793238462643383279502884197169399375105820974944592307816406665'),
@@ -61,11 +69,13 @@ const STARK_CURVE = /* @__PURE__ */ (() => ({
   h: BigInt(1), // cofactor
 }))();
 
+// Match StarkWare signer behavior: preserve high-S signatures and Stark-specific hash truncation.
 const STARK_ECDSA = {
   lowS: false, // Allow high-s signatures
   // Custom truncation routines for stark curve
   bits2int,
-  bits2int_modN: (bytes: Uint8Array): bigint => {
+  bits2int_modN: (bytes: TArg<Uint8Array>): bigint => {
+    // 63-hex-digit hashes need a 4-bit left shift to match StarkWare's fixMsgHashLen path.
     // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee11318 =>
     // 2102820b232636d200cb21f1d330f20d096cae09d1bf3edb1cc333ddee113180
     const hex = u.bytesToNumberBE(bytes).toString(16); // toHex unpadded
@@ -83,31 +93,37 @@ const STARK_ECDSA = {
  * ```
  */
 const Point: WeierstrassPointCons<bigint> = /* @__PURE__ */ (() => weierstrass(STARK_CURVE))();
+// Noble ECDSA bound to the Stark curve.
+// SHA-256 feeds RFC6979 while public APIs accept prehashed Stark messages.
 const ECDSA = /* @__PURE__ */ (() => ecdsa(Point, sha256, STARK_ECDSA))();
 
-function toBytes(hex: Hex): Uint8Array {
-  return typeof hex === 'string' ? u.hexToBytes(hex) : hex;
+function toBytes(hex: TArg<Hex>): TRet<Uint8Array> {
+  return (typeof hex === 'string' ? u.hexToBytes(hex) : hex) as TRet<Uint8Array>;
 }
 
-function toBytesPriv(hex: PrivKey): Uint8Array {
-  return typeof hex === 'bigint' ? Point.Fn.toBytes(hex) : toBytes(hex);
+// bigint private keys are canonicalized to 32 bytes; string/Uint8Array inputs stay raw.
+function toBytesPriv(hex: TArg<PrivKey>): TRet<Uint8Array> {
+  return (typeof hex === 'bigint' ? Point.Fn.toBytes(hex) : toBytes(hex)) as TRet<Uint8Array>;
 }
 
-function ensureBytes(hex: Hex): Uint8Array {
-  return u.abytes(typeof hex === 'string' ? hex0xToBytes(hex) : hex);
+// Public hex inputs accept 0x prefixes and odd lengths before Uint8Array validation.
+function ensureBytes(hex: TArg<Hex>): TRet<Uint8Array> {
+  return u.abytes(typeof hex === 'string' ? hex0xToBytes(hex) : hex) as TRet<Uint8Array>;
 }
 
 /**
  * Normalizes a Stark private key into a 32-byte lowercase hex string without `0x`.
  * @param privKey - private key as bytes or hex
  * @returns Zero-padded private key hex.
+ * Assumes `privKey` encodes at most 32 bytes.
+ * Longer inputs are preserved here and rejected later by curve operations.
  * @example
  * Normalize a short hex string into the canonical 32-byte Stark private key form.
  * ```ts
  * normalizePrivateKey('1');
  * ```
  */
-export function normalizePrivateKey(privKey: Hex): string {
+export function normalizePrivateKey(privKey: TArg<Hex>): string {
   return u.bytesToHex(ensureBytes(privKey)).padStart(64, '0');
 }
 /**
@@ -121,14 +137,17 @@ export function normalizePrivateKey(privKey: Hex): string {
  * getPublicKey('1');
  * ```
  */
-export function getPublicKey(privKey: Hex, isCompressed = false): Uint8Array {
+export function getPublicKey(privKey: TArg<Hex>, isCompressed = false): TRet<Uint8Array> {
   return ECDSA.getPublicKey(u.hexToBytes(normalizePrivateKey(privKey)), isCompressed);
 }
 /**
  * Computes the Stark ECDH shared secret for a private key and peer public key.
  * @param privKeyA - local private key as bytes or hex
  * @param pubKeyB - peer public key as bytes or hex
- * @returns Shared secret bytes.
+ * @returns Compressed shared point bytes.
+ * Intentional API-compatibility behavior for existing callers.
+ * This mirrors noble-curves' ECDH helper and returns the compressed shared curve
+ * point, not the SEC 1 raw x-coordinate or KDF input.
  * @example
  * Compute the shared secret from one private key and the peer public key.
  * ```ts
@@ -136,12 +155,15 @@ export function getPublicKey(privKey: Hex, isCompressed = false): Uint8Array {
  * getSharedSecret('1', getPublicKey('2'));
  * ```
  */
-export function getSharedSecret(privKeyA: Hex, pubKeyB: Hex): Uint8Array {
-  return ECDSA.getSharedSecret(u.hexToBytes(normalizePrivateKey(privKeyA)), toBytes(pubKeyB));
+export function getSharedSecret(privKeyA: TArg<Hex>, pubKeyB: TArg<Hex>): TRet<Uint8Array> {
+  // Peer public keys follow the same public hex normalization as other exported APIs.
+  // This includes 0x-prefixed strings.
+  return ECDSA.getSharedSecret(u.hexToBytes(normalizePrivateKey(privKeyA)), ensureBytes(pubKeyB));
 }
 
 function checkSignature(signature: ECDSASignature) {
-  // Signature.s checked inside weierstrass
+  // Noble already enforces 1 <= r,s < n.
+  // StarkWare adds extra r < 2**251 and s^-1 mod n < 2**251 checks.
   const { r, s } = signature;
   if (r < 0n || r >= MAX_VALUE) throw new RangeError(`Signature.r should be [1, ${MAX_VALUE})`);
   const w = invert(s, CURVE_ORDER);
@@ -149,11 +171,13 @@ function checkSignature(signature: ECDSASignature) {
     throw new RangeError(`inv(Signature.s) should be [1, ${MAX_VALUE})`);
 }
 
-function checkMessage(msgHash: Hex) {
+function checkMessage(msgHash: TArg<Hex>) {
   const bytes = ensureBytes(msgHash);
   const num = u.bytesToNumberBE(bytes);
   // num < 0 impossible here
   if (num >= MAX_VALUE) throw new RangeError(`msgHash should be [0, ${MAX_VALUE})`);
+  // Preserve the caller's hash encoding; Stark-specific truncation and leading-zero handling
+  // happen later in bits2int.
   return bytes;
 }
 
@@ -161,8 +185,10 @@ function checkMessage(msgHash: Hex) {
  * Signs a Stark message hash without prehashing it first.
  * @param msgHash - message hash inside the Stark field range
  * @param privKey - private key as bytes or hex
- * @param opts - Optional ECDSA signing overrides forwarded to noble-curves.
+ * @param opts - Optional ECDSA signing overrides. See {@link SignOpts}; `prehash: true` is not exposed because this wrapper signs a prehashed Stark message. Explicit `format` values are accepted and decoded back into the returned `Signature`.
  * @returns Parsed Stark ECDSA signature.
+ * If `opts.format` is `'recovered'`, the returned `Signature` preserves the recovery bit.
+ * @throws On unsupported `opts.prehash` overrides. {@link TypeError}
  * @throws On Stark message hashes or signature values outside the Stark field range. {@link RangeError}
  * @example
  * Sign a prehashed Stark message with a private key.
@@ -170,12 +196,23 @@ function checkMessage(msgHash: Hex) {
  * sign('1', '2');
  * ```
  */
-export function sign(msgHash: Hex, privKey: Hex, opts?: any): ECDSASignature {
+export function sign(
+  msgHash: TArg<Hex>,
+  privKey: TArg<Hex>,
+  opts?: TArg<SignOpts>
+): ECDSASignature {
+  // Starknet callers provide an already-hashed field element; allowing prehash=true would hash it again and break verify().
+  if (typeof opts?.prehash !== 'undefined' && opts.prehash !== false)
+    throw new TypeError(
+      'sign() expects a prehashed Stark msgHash; opts.prehash=true is unsupported'
+    );
+  const format = opts?.format;
   const sigBytes = ECDSA.sign(checkMessage(msgHash), u.hexToBytes(normalizePrivateKey(privKey)), {
     prehash: false,
     ...opts,
   });
-  const sig = Signature.fromBytes(sigBytes);
+  // The wrapper always returns a Signature object, so explicit encodings need a matching decode here.
+  const sig = Signature.fromBytes(sigBytes, format);
   checkSignature(sig);
   return sig;
 }
@@ -185,6 +222,7 @@ export function sign(msgHash: Hex, privKey: Hex, opts?: any): ECDSASignature {
  * @param signature - signature object or encoded signature bytes/hex
  * @param msgHash - message hash inside the Stark field range
  * @param pubKey - public key as bytes or hex
+ * @param opts - Optional byte-signature decode options. See {@link VerifyOpts}; pass `format` to bypass legacy DER-first fallback and decode compact, recovered, or DER explicitly.
  * @returns Whether the signature is valid for the message hash.
  * @throws On Stark message hashes or signature values outside the Stark field range. {@link RangeError}
  * @example
@@ -196,14 +234,27 @@ export function sign(msgHash: Hex, privKey: Hex, opts?: any): ECDSASignature {
  * verify(sign(msgHash, privKey), msgHash, getPublicKey(privKey));
  * ```
  */
-export function verify(signature: ECDSASignature | Hex, msgHash: Hex, pubKey: Hex): boolean {
+export function verify(
+  signature: TArg<ECDSASignature | Hex>,
+  msgHash: TArg<Hex>,
+  pubKey: TArg<Hex>,
+  opts?: VerifyOpts
+): boolean {
   if (!(signature instanceof Signature)) {
     const bytes = ensureBytes(signature);
-    try {
-      signature = Signature.fromBytes(bytes, 'der');
-    } catch (derError) {
-      if (!(derError instanceof DER.Err)) throw derError;
-      signature = Signature.fromBytes(bytes, 'compact');
+    // Explicit format matches noble-curves' non-ambiguous decode path; undefined keeps the legacy
+    // DER/compact fallback for compatibility.
+    if (opts?.format) {
+      signature = Signature.fromBytes(bytes, opts.format);
+    } else {
+      // Legacy compatibility path: accept StarkWare / starknet.js DER signatures first, then fall
+      // back to the fixed-width compact form.
+      try {
+        signature = Signature.fromBytes(bytes, 'der');
+      } catch (derError) {
+        if (!(derError instanceof DER.Err)) throw derError;
+        signature = Signature.fromBytes(bytes, 'compact');
+      }
     }
   }
   checkSignature(signature);
@@ -214,6 +265,8 @@ export function verify(signature: ECDSASignature | Hex, msgHash: Hex, pubKey: He
 
 /**
  * Stark ECDSA signature constructor and byte decoders.
+ * Direct alias of noble's signature class: validates `r`/`s` and supports compact, DER, and
+ * recovered encodings.
  * @example
  * Construct a Stark signature object and serialize it back to hex.
  * ```ts
@@ -223,6 +276,8 @@ export function verify(signature: ECDSASignature | Hex, msgHash: Hex, pubKey: He
 const Signature: ECDSASignatureCons = /* @__PURE__ */ (() => ECDSA.Signature)();
 /**
  * Helper methods for Stark private keys and point precomputation.
+ * Private-key helpers treat string/Uint8Array inputs as raw secret-key bytes; `precompute()`
+ * mutates and returns the supplied point.
  * @example
  * Check whether a candidate private key lies in the Stark scalar field.
  * ```ts
@@ -230,27 +285,37 @@ const Signature: ECDSASignatureCons = /* @__PURE__ */ (() => ECDSA.Signature)();
  * ```
  */
 const utils: {
-  normPrivateKeyToScalar: (key: PrivKey) => bigint;
+  normPrivateKeyToScalar: (key: TArg<PrivKey>) => bigint;
   isValidPrivateKey(privateKey: PrivKey): boolean;
   randomPrivateKey: () => Uint8Array;
   precompute: (windowSize?: number, point?: WeierstrassPoint<bigint>) => WeierstrassPoint<bigint>;
-} = /* @__PURE__ */ (() => ({
-  normPrivateKeyToScalar: (key: PrivKey): bigint => {
-    const bytes = toBytesPriv(key);
-    const scalar = Point.Fn.fromBytes(bytes);
-    if (!Point.Fn.isValidNot0(scalar)) throw new RangeError('wrong secret scalar');
-    return scalar;
-  },
-  isValidPrivateKey: (key) => ECDSA.utils.isValidSecretKey(toBytesPriv(key)),
-  randomPrivateKey: ECDSA.utils.randomSecretKey,
-  precompute(windowSize = 8, point = Point.BASE) {
-    point.precompute(windowSize, false);
-    return point;
-  },
-}))();
+} = /* @__PURE__ */ (() =>
+  Object.freeze({
+    normPrivateKeyToScalar: (key: TArg<PrivKey>): bigint => {
+      const bytes = toBytesPriv(key);
+      const scalar = Point.Fn.fromBytes(bytes);
+      if (!Point.Fn.isValidNot0(scalar)) throw new RangeError('wrong secret scalar');
+      return scalar;
+    },
+    isValidPrivateKey: (key) => {
+      // Match noble-curves validator behavior: malformed encodings should report false instead of leaking parser errors.
+      try {
+        return ECDSA.utils.isValidSecretKey(toBytesPriv(key));
+      } catch {
+        return false;
+      }
+    },
+    randomPrivateKey: ECDSA.utils.randomSecretKey,
+    precompute(windowSize = 8, point = Point.BASE) {
+      point.precompute(windowSize, false);
+      return point;
+    },
+  }))();
 export { Point, Signature, utils };
 
-function extractX(bytes: Uint8Array): string {
+// Internal callers pass compressed SEC 1 point bytes; drop the format byte and return the
+// canonical unpadded x-coordinate as 0x hex.
+function extractX(bytes: TArg<Uint8Array>): string {
   const hex = u.bytesToHex(bytes.subarray(1));
   const stripped = hex.replace(/^0+/gm, ''); // strip leading 0s
   return `0x${stripped}`;
@@ -264,6 +329,8 @@ function strip0x(hex: string) {
  * Derives a Stark private key from arbitrary seed material with rejection sampling.
  * @param seed - seed bytes or hex
  * @returns Hex private key suitable for Stark signatures.
+ * Returns lowercase hex without `0x` or left padding; callers that need the canonical 32-byte form
+ * should normalize it separately.
  * @throws If rejection sampling does not find a valid Stark private key within the retry limit. {@link Error}
  * @example
  * Grind arbitrary seed material into a Stark private key.
@@ -271,7 +338,7 @@ function strip0x(hex: string) {
  * grindKey('01');
  * ```
  */
-export function grindKey(seed: Hex): string {
+export function grindKey(seed: TArg<Hex>): string {
   const _seed = ensureBytes(seed);
   const sha256mask = 2n ** 256n;
   const limit = sha256mask - mod(sha256mask, CURVE_ORDER);
@@ -286,13 +353,14 @@ export function grindKey(seed: Hex): string {
  * Derives the Stark key x-coordinate for a private key.
  * @param privateKey - private key as bytes or hex
  * @returns Stark key hex string with `0x` prefix.
+ * Returns only the canonical unpadded x-coordinate string, not the SEC 1 compressed point bytes.
  * @example
  * Extract the Stark public key x-coordinate as a hex string.
  * ```ts
  * getStarkKey('1');
  * ```
  */
-export function getStarkKey(privateKey: Hex): string {
+export function getStarkKey(privateKey: TArg<Hex>): string {
   return extractX(getPublicKey(privateKey, true));
 }
 
@@ -300,7 +368,9 @@ export function getStarkKey(privateKey: Hex): string {
  * Turns a 65-byte Ethereum signature into a Stark private key.
  * @param signature - Ethereum signature hex with `0x` prefix
  * @returns Stark private key hex.
+ * Uses the signature's 32-byte `r` component as the grinding seed.
  * @throws If grinding the Ethereum signature fails to produce a Stark private key within the retry limit. {@link Error}
+ * @throws On wrong Ethereum signature type. {@link TypeError}
  * @throws On wrong Ethereum signature length. {@link RangeError}
  * @example
  * Convert an Ethereum signature into deterministic Stark key material.
@@ -312,20 +382,28 @@ export function getStarkKey(privateKey: Hex): string {
  * ```
  */
 export function ethSigToPrivate(signature: string): string {
+  if (typeof signature !== 'string')
+    throw new TypeError(`Wrong ethereum signature type: expected string, got ${typeof signature}`);
   signature = strip0x(signature);
   if (signature.length !== 130) throw new RangeError('Wrong ethereum signature');
+  // Only `r` seeds grindKey(), but the whole 65-byte Ethereum signature must still be valid hex.
+  u.hexToBytes(signature);
   return grindKey(signature.substring(0, 64));
 }
 
+// ERC-2645 path components use only the low 31 bits of each hashed or address-derived limb.
 const MASK_31 = /* @__PURE__ */ (() => 2n ** 31n - 1n)();
+// After masking, the ERC-2645 limb fits exactly in a JS number for path-string formatting.
 const int31 = (n: bigint) => Number(n & MASK_31);
 /**
  * Builds the StarkEx account derivation path for a layer, application, address, and index.
  * @param layer - StarkEx layer name
  * @param application - StarkEx application name
  * @param ethereumAddress - Ethereum address used in derivation
- * @param index - account index inside the derived subtree
+ * @param index - Final unhardened BIP32 child index inside the derived subtree; should be an integer in `[0, 2^31)`.
  * @returns BIP32 derivation path string.
+ * @throws On wrong index types. {@link TypeError}
+ * @throws On invalid index ranges or values. {@link RangeError}
  * @example
  * Derive the StarkEx account path for one wallet and account index.
  * ```ts
@@ -338,9 +416,16 @@ export function getAccountPath(
   ethereumAddress: string,
   index: number
 ): string {
+  if (typeof index !== 'number')
+    throw new TypeError(`Wrong index type: expected number, got ${typeof index}`);
+  // Final path segment is unhardened, so BIP32 only allows indices below 2^31 here.
+  if (!Number.isSafeInteger(index) || index < 0 || index >= 2 ** 31)
+    throw new RangeError(`Wrong index=${index}`);
   const layerNum = int31(sha256Num(utf8ToBytes(layer)));
   const applicationNum = int31(sha256Num(utf8ToBytes(application)));
   const eth = u.hexToNumber(strip0x(ethereumAddress));
+  // BIP32 child indices must already be concrete non-negative integers before path-string
+  // formatting.
   return `m/2645'/${layerNum}'/${applicationNum}'/${int31(eth)}'/${int31(eth >> 31n)}'/${index}`;
 }
 
@@ -355,6 +440,7 @@ export function getAccountPath(
 // else the x-coordinate coordinate is incremented by one.
 // https://docs.starkware.co/starkex/pedersen-hash-function.html
 // https://github.com/starkware-libs/starkex-for-spot-trading/blob/607f0b4ce507e1d95cd018d206a2797f6ba4aab4/src/starkware/crypto/starkware/crypto/signature/nothing_up_my_sleeve_gen.py
+// Reduced StarkWare seed table: shift point plus the low-248-bit and high-4-bit bases for x and y.
 const PEDERSEN_POINTS = /* @__PURE__ */ (() =>
   [
     new Point(
@@ -384,6 +470,8 @@ const PEDERSEN_POINTS = /* @__PURE__ */ (() =>
     ),
   ] as const)();
 
+// Expand one Pedersen input's reduced seeds into the 248 low-bit points.
+// Also include the 4 high-bit points used by StarkWare.
 function pedersenPrecompute(p1: _Point, p2: _Point): _Point[] {
   const out: _Point[] = [];
   let p = p1;
@@ -400,17 +488,20 @@ function pedersenPrecompute(p1: _Point, p2: _Point): _Point[] {
   }
   return out;
 }
+// Precomputed lookup tables for the x-input and y-input Pedersen subset sums.
 const PEDERSEN_POINTS1 = /* @__PURE__ */ (() =>
   pedersenPrecompute(PEDERSEN_POINTS[1], PEDERSEN_POINTS[2]))();
 const PEDERSEN_POINTS2 = /* @__PURE__ */ (() =>
   pedersenPrecompute(PEDERSEN_POINTS[3], PEDERSEN_POINTS[4]))();
 
 type PedersenArg = Hex | bigint | number;
-function pedersenArg(arg: PedersenArg): bigint {
+function pedersenArg(arg: TArg<PedersenArg>): bigint {
   let value: bigint;
   if (typeof arg === 'bigint') {
     value = arg;
   } else if (typeof arg === 'number') {
+    // JS numbers are accepted only when they roundtrip exactly to bigint field
+    // elements; larger values should use bigint, hex, or bytes.
     if (!Number.isSafeInteger(arg)) throw new RangeError(`Invalid pedersenArg: ${arg}`);
     value = BigInt(arg);
   } else {
@@ -422,8 +513,10 @@ function pedersenArg(arg: PedersenArg): bigint {
 }
 
 /** Warning: Not algorithmic constant-time. */
-function pedersenSingle(point: _Point, value: PedersenArg, constants: _Point[]) {
+function pedersenSingle(point: _Point, value: TArg<PedersenArg>, constants: _Point[]) {
   let x = pedersenArg(value);
+  // Keep the fixed 252-step walk so table indices stay aligned with the StarkWare subset-sum
+  // constants even after x becomes 0.
   for (let j = 0; j < 252; j++) {
     const pt = constants[j];
     if (!pt) throw new Error('invalid constant index');
@@ -440,6 +533,8 @@ function pedersenSingle(point: _Point, value: PedersenArg, constants: _Point[]) 
  * @param x - first field element as bytes, hex, bigint, or safe integer
  * @param y - second field element as bytes, hex, bigint, or safe integer
  * @returns Pedersen hash as `0x`-prefixed hex.
+ * Returns the canonical unpadded x-coordinate string of the final Pedersen point, not a full point
+ * encoding.
  * @throws If Pedersen point encoding fails unexpectedly. {@link Error}
  * @throws On Pedersen inputs outside the Stark field range. {@link RangeError}
  * @example
@@ -448,7 +543,7 @@ function pedersenSingle(point: _Point, value: PedersenArg, constants: _Point[]) 
  * pedersen(1, 2);
  * ```
  */
-export function pedersen(x: PedersenArg, y: PedersenArg): string {
+export function pedersen(x: TArg<PedersenArg>, y: TArg<PedersenArg>): string {
   let point: _Point = PEDERSEN_POINTS[0];
   point = pedersenSingle(point, x, PEDERSEN_POINTS1);
   point = pedersenSingle(point, y, PEDERSEN_POINTS2);
@@ -459,7 +554,8 @@ export function pedersen(x: PedersenArg, y: PedersenArg): string {
 /**
  * Hashes a list of elements with Pedersen while preserving input order and appending the length.
  * @param data - elements to hash
- * @param fn - hash function used for each fold step
+ * @param fn - Pairwise fold function, called as `fn(acc, next)` for each
+ * element and once more with `data.length`.
  * @returns Folded hash result.
  * @example
  * Hash an ordered list of elements with the Starknet Pedersen fold.
@@ -468,23 +564,30 @@ export function pedersen(x: PedersenArg, y: PedersenArg): string {
  * ```
  */
 export const computeHashOnElements = (
-  data: PedersenArg[],
+  data: TArg<PedersenArg[]>,
   fn: typeof pedersen = pedersen
-): PedersenArg => [0, ...data, data.length].reduce((x, y) => fn(x, y));
+): TRet<PedersenArg> => [0, ...data, data.length].reduce((x, y) => fn(x, y)) as TRet<PedersenArg>;
 
+// Starknet keccak keeps the low 250 bits of Keccak-256 so the bigint stays below the
+// Stark field range.
 const MASK_250 = /* @__PURE__ */ u.bitMask(250);
 /**
  * Computes Starknet keccak by truncating Keccak-256 to 250 bits.
  * @param data - bytes to hash
  * @returns Hash as a bigint field element.
+ * Keeps the low 250 bits of the Keccak-256 digest; it does not right-shift or reduce modulo
+ * the Stark field.
  * @example
  * Compute Starknet keccak for raw bytes.
  * ```ts
  * keccak(new Uint8Array([1, 2, 3]));
  * ```
  */
-export const keccak = (data: Uint8Array): bigint => u.bytesToNumberBE(keccak_256(data)) & MASK_250;
-const sha256Num = (data: Uint8Array): bigint => u.bytesToNumberBE(sha256(data));
+export const keccak = (data: TArg<Uint8Array>): bigint =>
+  u.bytesToNumberBE(keccak_256(data)) & MASK_250;
+// Interpret SHA-256's 32-byte digest as one big-endian integer for ERC-2645 limbs and
+// grindKey rejection sampling.
+const sha256Num = (data: TArg<Uint8Array>): bigint => u.bytesToNumberBE(sha256(data));
 
 // Poseidon hash
 // Unused for now
@@ -493,6 +596,7 @@ const sha256Num = (data: Uint8Array): bigint => u.bytesToNumberBE(sha256(data));
 // ); // 2^253 + 2^199 + 1
 /**
  * Prime field used by Starknet Poseidon: `2^251 + 17 * 2^192 + 1`.
+ * Despite the name, canonical encodings still occupy 32 big-endian bytes because `p > 2^251`.
  * @example
  * Construct one field element in the Starknet Poseidon field.
  * ```ts
@@ -506,6 +610,8 @@ export const Fp251: Readonly<IField<bigint> & Required<Pick<IField<bigint>, 'isO
     ))(); // 2^251 + 17 * 2^192 + 1
 
 function poseidonRoundConstant(Fp: IField<bigint>, name: string, idx: number) {
+  // Hash the seed string to 32 bytes, then reduce that digest into Fp to match
+  // StarkWare's Poseidon constants.
   const val = Fp.fromBytes(sha256(utf8ToBytes(`${name}${idx}`)), true);
   return Fp.create(val);
 }
@@ -531,7 +637,10 @@ const validatePoseidonOpts = (opts: PoseidonOpts) => {
     opts.rate <= 0 ||
     opts.capacity <= 0 ||
     opts.roundsFull < 0 ||
-    opts.roundsPartial < 0
+    opts.roundsPartial < 0 ||
+    // Keep wrapper-level RangeError behavior instead of leaking noble-curves'
+    // downstream odd-roundsFull Error.
+    !!(opts.roundsFull & 1)
   )
     throw new RangeError(`Wrong poseidon opts: ${opts}`);
 };
@@ -548,9 +657,11 @@ export function _poseidonMDS(Fp: IField<bigint>, name: string, m: number, attemp
   }
   if (new Set([...x_values, ...y_values]).size !== 2 * m)
     throw new Error('X and Y values are not distinct');
+  // Build the Cauchy-style MDS matrix 1 / (x_i - y_j) from the hashed x/y seed values.
   return x_values.map((x) => y_values.map((y) => Fp.inv(Fp.sub(x, y))));
 }
 
+// Official width-3 StarkWare Poseidon MDS matrix used by the default poseidonSmall permutation.
 const MDS_SMALL = /* @__PURE__ */ (() =>
   [
     [3, 1, 1],
@@ -566,7 +677,8 @@ export type PoseidonOpts = {
   rate: number;
   /** Number of capacity elements reserved for domain separation. */
   capacity: number;
-  /** Count of full rounds with a nonlinear layer on every lane. */
+  /** Count of full rounds with a nonlinear layer on every lane; must be even so Poseidon can
+   * split them around the partial rounds. */
   roundsFull: number;
   /** Count of partial rounds with a nonlinear layer on one lane. */
   roundsPartial: number;
@@ -614,6 +726,7 @@ export function poseidonBasic(opts: PoseidonOpts, mds: bigint[][]): PoseidonFn {
     for (let j = 0; j < m; j++) row.push(poseidonRoundConstant(opts.Fp, 'Hades', m * i + j));
     roundConstants.push(row);
   }
+  // StarkWare's Poseidon fixes a cubic S-box and applies the partial-round power on the last lane.
   const res: Partial<PoseidonFn> = poseidon({
     ...opts,
     t: m,
@@ -655,6 +768,9 @@ export function poseidonCreate(opts: PoseidonOpts, mdsAttempt = 0): PoseidonFn {
 
 /**
  * Default Starknet Poseidon permutation.
+ * Uses the fixed width-3 vector-backed MDS matrix, not the generated `HadesMDS` path from {@link poseidonCreate}.
+ * @param values - Poseidon state vector to permute.
+ * @returns Permuted Poseidon state vector.
  * @example
  * Feed the default Starknet permutation into the standard 2-input hash helper.
  * ```ts
@@ -669,6 +785,7 @@ export const poseidonSmall: PoseidonFn = /* @__PURE__ */ poseidonBasic(
 
 /**
  * Hashes two field elements with the default Starknet Poseidon permutation.
+ * Applies the 2-input Starknet padding/domain-separation rule `fn([x, y, 2n])[0]`.
  * @param x - first field element
  * @param y - second field element
  * @param fn - Poseidon permutation to use
@@ -685,6 +802,7 @@ export function poseidonHash(x: bigint, y: bigint, fn: PoseidonFn = poseidonSmal
 
 /**
  * Hashes two byte arrays with Poseidon and returns the encoded bytes.
+ * Interprets inputs as unsigned big-endian integers and returns a minimal big-endian byte string, not a fixed 32-byte field encoding.
  * @param x - first byte array
  * @param y - second byte array
  * @param fn - Poseidon permutation to use
@@ -696,15 +814,16 @@ export function poseidonHash(x: bigint, y: bigint, fn: PoseidonFn = poseidonSmal
  * ```
  */
 export function poseidonHashFunc(
-  x: Uint8Array,
-  y: Uint8Array,
+  x: TArg<Uint8Array>,
+  y: TArg<Uint8Array>,
   fn: PoseidonFn = poseidonSmall
-): Uint8Array {
+): TRet<Uint8Array> {
   return u.numberToVarBytesBE(poseidonHash(u.bytesToNumberBE(x), u.bytesToNumberBE(y), fn));
 }
 
 /**
  * Hashes a single field element with Poseidon.
+ * Applies the 1-input Starknet padding/domain-separation rule `fn([x, 0n, 1n])[0]`.
  * @param x - field element to hash
  * @param fn - Poseidon permutation to use
  * @returns Poseidon hash result.
@@ -720,10 +839,11 @@ export function poseidonHashSingle(x: bigint, fn: PoseidonFn = poseidonSmall): b
 
 /**
  * Hashes a list of field elements with Poseidon sponge padding.
+ * Appends `1n`, zero-pads to a multiple of the permutation rate, then absorbs each rate-sized block into the zero state.
  * @param values - field elements to hash
- * @param fn - Poseidon permutation to use
+ * @param fn - Poseidon permutation to use; custom functions are trusted to return a valid state vector
  * @returns Poseidon hash result.
- * @throws If the supplied Poseidon permutation returns malformed state. {@link Error}
+ * @throws If internal Poseidon sponge sizing invariants fail unexpectedly. {@link Error}
  * @throws On wrong `values` argument types. {@link TypeError}
  * @example
  * Hash a list of field elements with Poseidon sponge padding.
