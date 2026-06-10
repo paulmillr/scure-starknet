@@ -54,6 +54,11 @@ function hex0xToBytes(hex: string): TRet<Uint8Array> {
   return u.hexToBytes(hex);
 }
 
+function afunc(fn: Function) {
+  if (typeof fn !== 'function')
+    throw new TypeError('"fn" expected function, got type=' + typeof fn);
+}
+
 // Match the StarkWare curve tuple used by the reference signer and Pedersen parameter generator.
 const STARK_CURVE = /* @__PURE__ */ (() => ({
   a: BigInt(1), // Params: a, b
@@ -416,8 +421,15 @@ export function getAccountPath(
   ethereumAddress: string,
   index: number
 ): string {
+  // Keep public argument labels before string helpers collapse wrong inputs into parser errors.
+  if (typeof layer !== 'string')
+    throw new TypeError('"layer" expected string, got type=' + typeof layer);
+  if (typeof application !== 'string')
+    throw new TypeError('"application" expected string, got type=' + typeof application);
+  if (typeof ethereumAddress !== 'string')
+    throw new TypeError('"ethereumAddress" expected string, got type=' + typeof ethereumAddress);
   if (typeof index !== 'number')
-    throw new TypeError(`Wrong index type: expected number, got ${typeof index}`);
+    throw new TypeError('"index" expected number, got type=' + typeof index);
   // Final path segment is unhardened, so BIP32 only allows indices below 2^31 here.
   if (!Number.isSafeInteger(index) || index < 0 || index >= 2 ** 31)
     throw new RangeError(`Wrong index=${index}`);
@@ -566,7 +578,12 @@ export function pedersen(x: TArg<PedersenArg>, y: TArg<PedersenArg>): string {
 export const computeHashOnElements = (
   data: TArg<PedersenArg[]>,
   fn: typeof pedersen = pedersen
-): TRet<PedersenArg> => [0, ...data, data.length].reduce((x, y) => fn(x, y)) as TRet<PedersenArg>;
+): TRet<PedersenArg> => {
+  // Validate public container/callback args before spread/reduce hides which argument was wrong.
+  if (!Array.isArray(data)) throw new TypeError('"data" expected array, got type=' + typeof data);
+  afunc(fn);
+  return [0, ...data, data.length].reduce((x, y) => fn(x, y)) as TRet<PedersenArg>;
+};
 
 // Starknet keccak keeps the low 250 bits of Keccak-256 so the bigint stays below the
 // Stark field range.
@@ -617,32 +634,28 @@ function poseidonRoundConstant(Fp: IField<bigint>, name: string, idx: number) {
 }
 
 const validatePoseidonOpts = (opts: PoseidonOpts) => {
+  u.validateObject(opts as any, { Fp: 'object' });
+  if (Array.isArray(opts.Fp)) throw new TypeError('"opts.Fp" expected object, got type=object');
   if (typeof opts.rate !== 'number')
-    throw new TypeError(`Wrong poseidon rate: expected number, got ${typeof opts.rate}`);
+    throw new TypeError('"opts.rate" expected number, got type=' + typeof opts.rate);
   if (typeof opts.capacity !== 'number')
-    throw new TypeError(`Wrong poseidon capacity: expected number, got ${typeof opts.capacity}`);
+    throw new TypeError('"opts.capacity" expected number, got type=' + typeof opts.capacity);
   if (typeof opts.roundsFull !== 'number')
-    throw new TypeError(
-      `Wrong poseidon roundsFull: expected number, got ${typeof opts.roundsFull}`
-    );
+    throw new TypeError('"opts.roundsFull" expected number, got type=' + typeof opts.roundsFull);
   if (typeof opts.roundsPartial !== 'number')
     throw new TypeError(
-      `Wrong poseidon roundsPartial: expected number, got ${typeof opts.roundsPartial}`
+      '"opts.roundsPartial" expected number, got type=' + typeof opts.roundsPartial
     );
-  if (
-    !Number.isSafeInteger(opts.rate) ||
-    !Number.isSafeInteger(opts.capacity) ||
-    !Number.isSafeInteger(opts.roundsFull) ||
-    !Number.isSafeInteger(opts.roundsPartial) ||
-    opts.rate <= 0 ||
-    opts.capacity <= 0 ||
-    opts.roundsFull < 0 ||
-    opts.roundsPartial < 0 ||
-    // Keep wrapper-level RangeError behavior instead of leaking noble-curves'
-    // downstream odd-roundsFull Error.
-    !!(opts.roundsFull & 1)
-  )
-    throw new RangeError(`Wrong poseidon opts: ${opts}`);
+  if (!Number.isSafeInteger(opts.rate) || opts.rate <= 0)
+    throw new RangeError(`"opts.rate" expected positive safe integer, got ${opts.rate}`);
+  if (!Number.isSafeInteger(opts.capacity) || opts.capacity <= 0)
+    throw new RangeError(`"opts.capacity" expected positive safe integer, got ${opts.capacity}`);
+  if (!Number.isSafeInteger(opts.roundsFull) || opts.roundsFull < 0)
+    throw new RangeError(`"opts.roundsFull" expected integer >= 0, got ${opts.roundsFull}`);
+  if (opts.roundsFull & 1)
+    throw new RangeError(`"opts.roundsFull" expected even integer, got ${opts.roundsFull}`);
+  if (!Number.isSafeInteger(opts.roundsPartial) || opts.roundsPartial < 0)
+    throw new RangeError(`"opts.roundsPartial" expected integer >= 0, got ${opts.roundsPartial}`);
 };
 
 // NOTE: doesn't check eiginvalues and possible can create unsafe matrix. But any filtration here will break compatibility with starknet
@@ -719,6 +732,21 @@ export function poseidonBasic(opts: PoseidonOpts, mds: bigint[][]): PoseidonFn {
   validateField(opts.Fp);
   validatePoseidonOpts(opts);
   const m = opts.rate + opts.capacity;
+  if (!Array.isArray(mds)) throw new TypeError('"mds" expected array, got type=' + typeof mds);
+  if (mds.length !== m) throw new RangeError('"mds" expected length ' + m + ', got ' + mds.length);
+  for (let row = 0; row < mds.length; row++) {
+    const mdsRow = mds[row];
+    if (!Array.isArray(mdsRow))
+      throw new TypeError('"mds[' + row + ']" expected array, got type=' + typeof mdsRow);
+    if (mdsRow.length !== m)
+      throw new RangeError('"mds[' + row + ']" expected length ' + m + ', got ' + mdsRow.length);
+    for (let col = 0; col < mdsRow.length; col++) {
+      if (typeof mdsRow[col] !== 'bigint')
+        throw new TypeError(
+          '"mds[' + row + '][' + col + ']" expected bigint, got type=' + typeof mdsRow[col]
+        );
+    }
+  }
   const rounds = opts.roundsFull + opts.roundsPartial;
   const roundConstants = [];
   for (let i = 0; i < rounds; i++) {
@@ -757,12 +785,13 @@ export function poseidonBasic(opts: PoseidonOpts, mds: bigint[][]): PoseidonFn {
  * ```
  */
 export function poseidonCreate(opts: PoseidonOpts, mdsAttempt = 0): PoseidonFn {
+  validateField(opts.Fp);
   validatePoseidonOpts(opts);
   const m = opts.rate + opts.capacity;
   if (typeof mdsAttempt !== 'number')
-    throw new TypeError(`Wrong mdsAttempt type: expected number, got ${typeof mdsAttempt}`);
+    throw new TypeError('"mdsAttempt" expected number, got type=' + typeof mdsAttempt);
   if (!Number.isSafeInteger(mdsAttempt) || mdsAttempt < 0)
-    throw new RangeError(`Wrong mdsAttempt=${mdsAttempt}`);
+    throw new RangeError('"mdsAttempt" expected integer >= 0, got ' + mdsAttempt);
   return poseidonBasic(opts, _poseidonMDS(opts.Fp, 'HadesMDS', m, mdsAttempt));
 }
 
@@ -772,9 +801,11 @@ export function poseidonCreate(opts: PoseidonOpts, mdsAttempt = 0): PoseidonFn {
  * @param values - Poseidon state vector to permute.
  * @returns Permuted Poseidon state vector.
  * @example
- * Feed the default Starknet permutation into the standard 2-input hash helper.
+ * Run the default width-3 Poseidon permutation directly, or feed it into the
+ * standard 2-input hash helper.
  * ```ts
  * import { poseidonHash, poseidonSmall } from '@scure/starknet';
+ * poseidonSmall([1n, 2n, 3n]);
  * poseidonHash(1n, 2n, poseidonSmall);
  * ```
  */
@@ -797,6 +828,7 @@ export const poseidonSmall: PoseidonFn = /* @__PURE__ */ poseidonBasic(
  * ```
  */
 export function poseidonHash(x: bigint, y: bigint, fn: PoseidonFn = poseidonSmall): bigint {
+  afunc(fn);
   return fn([x, y, 2n])[0]!;
 }
 
@@ -818,6 +850,7 @@ export function poseidonHashFunc(
   y: TArg<Uint8Array>,
   fn: PoseidonFn = poseidonSmall
 ): TRet<Uint8Array> {
+  afunc(fn);
   return u.numberToVarBytesBE(poseidonHash(u.bytesToNumberBE(x), u.bytesToNumberBE(y), fn));
 }
 
@@ -834,6 +867,7 @@ export function poseidonHashFunc(
  * ```
  */
 export function poseidonHashSingle(x: bigint, fn: PoseidonFn = poseidonSmall): bigint {
+  afunc(fn);
   return fn([x, 0n, 1n])[0]!;
 }
 
@@ -852,8 +886,10 @@ export function poseidonHashSingle(x: bigint, fn: PoseidonFn = poseidonSmall): b
  * ```
  */
 export function poseidonHashMany(values: bigint[], fn: PoseidonFn = poseidonSmall): bigint {
+  if (!Array.isArray(values))
+    throw new TypeError('"values" expected array, got type=' + typeof values);
+  afunc(fn);
   const { m, rate } = fn;
-  if (!Array.isArray(values)) throw new TypeError('bigint array expected in values');
   const padded = Array.from(values); // copy
   padded.push(1n);
   while (padded.length % rate !== 0) padded.push(0n);

@@ -14,7 +14,7 @@
     "@noble/hashes": "~2.2.0"
   },
   "devDependencies": {
-    "@paulmillr/jsbt": "0.5.0",
+    "@paulmillr/jsbt": "0.5.2",
     "@scure/base": "2.2.0",
     "@scure/bip32": "2.2.0",
     "@scure/bip39": "2.2.0",
@@ -27,9 +27,6 @@
     "build": "tsc",
     "build:release": "npx --no @paulmillr/jsbt esbuild test/build",
     "check": "npx --no @paulmillr/jsbt check package.json",
-    "check:readme": "npx --no @paulmillr/jsbt readme package.json",
-    "check:treeshake": "npx --no @paulmillr/jsbt treeshake package.json test/build/out-treeshake",
-    "check:jsdoc": "npx --no @paulmillr/jsbt tsdoc package.json",
     "bench": "cd test/benchmark; npm i; node index.js",
     "format": "prettier --write index.ts test/*.test.ts",
     "test": "node test/index.ts",
