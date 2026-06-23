@@ -14,7 +14,7 @@
     "@noble/hashes": "~2.2.0"
   },
   "devDependencies": {
-    "@paulmillr/jsbt": "0.5.2",
+    "@paulmillr/jsbt": "0.6.0",
     "@scure/base": "2.2.0",
     "@scure/bip32": "2.2.0",
     "@scure/bip39": "2.2.0",
