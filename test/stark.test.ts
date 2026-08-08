@@ -1,5 +1,5 @@
 import { utf8ToBytes } from '@noble/hashes/utils.js';
-import { describe, should } from '@paulmillr/jsbt/test.js';
+import { describe, it } from '@paulmillr/jsbt/test.js';
 import * as bip32 from '@scure/bip32';
 import * as bip39 from '@scure/bip39';
 import { deepStrictEqual, throws } from 'node:assert';
@@ -8,13 +8,13 @@ import { default as precomputedKeys } from './vectors/keys_precomputed.json' wit
 import { default as sigVec } from './vectors/rfc6979_signature_test_vector.json' with { type: 'json' };
 
 describe('starknet', () => {
-  should('custom keccak', () => {
+  it('custom keccak', () => {
     const value = starknet.keccak(utf8ToBytes('hello'));
     deepStrictEqual(value, 0x8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8n);
     deepStrictEqual(value < 2n ** 250n, true);
   });
 
-  should('RFC6979', () => {
+  it('RFC6979', () => {
     for (const msg of sigVec.messages) {
       const { r, s } = starknet.sign(msg.hash, sigVec.private_key);
       // const { r, s } = starknet.Signature.fromDER(sig);
@@ -23,7 +23,7 @@ describe('starknet', () => {
     }
   });
 
-  should('Signatures', () => {
+  it('Signatures', () => {
     const vectors = [
       {
         // Message hash of length 61.
@@ -62,7 +62,7 @@ describe('starknet', () => {
     }
   });
 
-  should('verify accepts recovered signatures only with explicit format', () => {
+  it('verify accepts recovered signatures only with explicit format', () => {
     const msgHash = '1';
     const privKey = '2';
     const pubKey = starknet.getPublicKey(privKey);
@@ -71,7 +71,7 @@ describe('starknet', () => {
     deepStrictEqual(starknet.verify(recovered, msgHash, pubKey, { format: 'recovered' }), true);
   });
 
-  should('sign accepts explicit signature formats and still returns Signature objects', () => {
+  it('sign accepts explicit signature formats and still returns Signature objects', () => {
     const msgHash = '1';
     const privKey = '2';
     const pubKey = starknet.getPublicKey(privKey);
@@ -92,7 +92,7 @@ describe('starknet', () => {
     );
   });
 
-  should('getSharedSecret accepts 0x-prefixed peer public keys', () => {
+  it('getSharedSecret accepts 0x-prefixed peer public keys', () => {
     const privA = '1';
     const pub = starknet.getPublicKey('2');
     const pubHex = Buffer.from(pub).toString('hex');
@@ -101,7 +101,7 @@ describe('starknet', () => {
     deepStrictEqual(actual, expected);
   });
 
-  should('validator constructors', () => {
+  it('validator constructors', () => {
     const privKey = '1';
     const pubKey = starknet.getPublicKey(privKey);
     throws(() => starknet.sign(starknet.MAX_VALUE.toString(16), privKey), RangeError);
@@ -161,7 +161,7 @@ describe('starknet', () => {
   });
 
   describe('invalid signatures', () => {
-    should('verify signature length', () => {
+    it('verify signature length', () => {
       const ecOrder = starknet.Point.CURVE().n;
       const maxEcdsaVal = 2n ** 251n;
       const maxMsgHash = maxEcdsaVal - 1n;
@@ -199,7 +199,7 @@ describe('starknet', () => {
       }
     });
 
-    should('not verify invalid signatures', () => {
+    it('not verify invalid signatures', () => {
       const privKey = starknet.utils.randomPrivateKey();
       const pub = starknet.getPublicKey(privKey);
       const pubInvalid = starknet.getPublicKey(starknet.utils.randomPrivateKey());
@@ -216,7 +216,7 @@ describe('starknet', () => {
       deepStrictEqual(verif(sigInvalidS, msgHex, pub), false, 'verifies with invalid signature S');
     });
 
-    should('signature cross-test (with different lengths)', () => {
+    it('signature cross-test (with different lengths)', () => {
       const vectors = [
         {
           msg: '00',
@@ -277,7 +277,7 @@ describe('starknet', () => {
     });
   });
 
-  should('Pedersen', () => {
+  it('Pedersen', () => {
     deepStrictEqual(
       starknet.pedersen(
         '0x3d937c035c878245caf64531a5756109c53068da139362728feb561405371cb',
@@ -294,7 +294,7 @@ describe('starknet', () => {
     );
   });
 
-  should('Key grinding', () => {
+  it('Key grinding', () => {
     deepStrictEqual(
       starknet.grindKey('86F3E7293141F20A8BAFF320E8EE4ACCB9D4A4BF2B4D295E8CEE784DB46E0519'),
       '5c8c8683596c732541a59e03007b2d30dbbbb873556fe65b5fb63c16688f941'
@@ -306,7 +306,7 @@ describe('starknet', () => {
     );
   });
 
-  should('Private to stark key', () => {
+  it('Private to stark key', () => {
     deepStrictEqual(
       starknet.getStarkKey('0x178047D3869489C055D7EA54C014FFB834A069C9595186ABE04EA4D1223A03F'),
       '0x1895a6a77ae14e7987b9cb51329a5adfb17bd8e7c638f92d6892d76e51cebcf'
@@ -316,7 +316,7 @@ describe('starknet', () => {
     }
   });
 
-  should('Private stark key from eth signature', () => {
+  it('Private stark key from eth signature', () => {
     const ethSignature =
       '0x21fbf0696d5e0aa2ef41a2b4ffb623bcaf070461d61cf7251c74161f82fec3a43' +
       '70854bc0a34b3ab487c1bc021cd318c734c51ae29374f2beb0e6f2dd49b4bf41c';
@@ -326,7 +326,7 @@ describe('starknet', () => {
     );
   });
 
-  should('Private stark key normalization', () => {
+  it('Private stark key normalization', () => {
     const ethSignature =
       '0x21fbf0696d5e0aa2ef41a2b4ffb623bcaf070461d61cf7251c74161f82fec3a43' +
       '70854bc0a34b3ab487c1bc021cd318c734c51ae29374f2beb0e6f2dd49b4bf41c';
@@ -339,7 +339,7 @@ describe('starknet', () => {
     );
   });
 
-  should('Key derivation', () => {
+  it('Key derivation', () => {
     const layer = 'starkex';
     const application = 'starkdeployement';
     const mnemonic =
@@ -372,7 +372,7 @@ describe('starknet', () => {
   });
 
   // Verified against starknet.js
-  should('Starknet.js cross-tests', () => {
+  it('Starknet.js cross-tests', () => {
     const privateKey = '0x019800ea6a9a73f94aee6a3d2edf018fc770443e90c7ba121e8303ec6b349279';
     // NOTE: there is no compressed keys here, getPubKey returns stark-key (which is schnorr-like X coordinate)
     // But it is not used in signing/verifying
@@ -407,4 +407,4 @@ describe('starknet', () => {
   });
 });
 
-should.runWhen(import.meta.url);
+it.runWhen(import.meta.url);

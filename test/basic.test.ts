@@ -1,12 +1,12 @@
+import { describe, it } from '@paulmillr/jsbt/test.js';
 import * as bip32 from '@scure/bip32';
 import * as bip39 from '@scure/bip39';
-import { describe, should } from '@paulmillr/jsbt/test.js';
 import { deepStrictEqual, throws } from 'node:assert';
 import * as starknet from '../index.js';
 import { default as issue2 } from './vectors/issue2.json' with { type: 'json' };
 
 describe('starknet basic', () => {
-  should('Basic elliptic sanity check', () => {
+  it('Basic elliptic sanity check', () => {
     const g1 = starknet.Point.BASE;
     deepStrictEqual(
       g1.toAffine().x.toString(16),
@@ -54,7 +54,7 @@ describe('starknet basic', () => {
     );
   });
 
-  should('Pedersen', () => {
+  it('Pedersen', () => {
     deepStrictEqual(
       starknet.pedersen(2, 3),
       '0x5774fa77b3d843ae9167abd61cf80365a9b2b02218fc2f628494b5bdc9b33b8'
@@ -69,7 +69,7 @@ describe('starknet basic', () => {
     );
   });
 
-  should('Pedersen hash edgecases', () => {
+  it('Pedersen hash edgecases', () => {
     // >>> pedersen_hash(0,0)
     const zero = '0x49ee3eba8c1600700ee1b87eb599f16716b0b1022947733551fde4050ca6804';
     deepStrictEqual(starknet.pedersen(0, 0), zero);
@@ -98,7 +98,7 @@ describe('starknet basic', () => {
     throws(() => starknet.pedersen(10.1, 10.1), 'float');
   });
 
-  should('Pedersen hash, issue #2', () => {
+  it('Pedersen hash, issue #2', () => {
     // Verified with starnet.js
     deepStrictEqual(
       starknet.computeHashOnElements(issue2),
@@ -114,7 +114,7 @@ describe('starknet basic', () => {
     );
   });
 
-  should('Seed derivation (example)', () => {
+  it('Seed derivation (example)', () => {
     const layer = 'starkex';
     const application = 'starkdeployement';
     const mnemonic =
@@ -130,7 +130,7 @@ describe('starknet basic', () => {
     );
   });
 
-  should('Compressed keys', () => {
+  it('Compressed keys', () => {
     const G = starknet.Point.BASE;
     const half = starknet.Point.CURVE().n / 2n;
     const last = starknet.Point.CURVE().n;
@@ -169,4 +169,4 @@ describe('starknet basic', () => {
   });
 });
 
-should.runWhen(import.meta.url);
+it.runWhen(import.meta.url);

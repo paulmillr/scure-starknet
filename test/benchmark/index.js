@@ -1,4 +1,4 @@
-import bench from '@paulmillr/jsbt/bench.js';
+import bench from '@paulmillr/jsbt/benchmark.js';
 // import * as starkwareCrypto from '@starkware-industries/starkware-crypto-utils';
 import * as stark from '../../index.js';
 

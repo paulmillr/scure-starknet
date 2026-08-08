@@ -1,5 +1,5 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
-import { describe, should } from '@paulmillr/jsbt/test.js';
+import { describe, it } from '@paulmillr/jsbt/test.js';
 import { deepStrictEqual as eql, throws } from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { dirname, join as joinPath } from 'node:path';
@@ -63,7 +63,7 @@ const parsed = {
 };
 
 function poseidonTest(name, parsed) {
-  should(`${name}`, () => {
+  it(`${name}`, () => {
     const fn = mapPoseidon(parsed);
     eql(fn.roundConstants, parsed.roundConstants);
   });
@@ -76,7 +76,7 @@ describe('poseidon txt vectors', () => {
   poseidonTest('poseidon9', parsed.poseidon9);
 });
 
-should('Poseidon examples', () => {
+it('Poseidon examples', () => {
   const p3 = mapPoseidon(parsed.poseidon3);
   eql(p3([0n, 0n, 0n]), [
     3446325744004048536138401612021367625846492093718951375866996507163446763827n,
@@ -112,7 +112,7 @@ should('Poseidon examples', () => {
   ]);
 });
 
-should('Poseidon 2', () => {
+it('Poseidon 2', () => {
   // Cross-test with cairo-lang 0.11
   eql(
     starknet.poseidonHash(1n, 1n),
@@ -208,7 +208,7 @@ should('Poseidon 2', () => {
   );
 });
 
-should('Poseidon validators reject odd roundsFull', () => {
+it('Poseidon validators reject odd roundsFull', () => {
   const opts = { Fp: starknet.Fp251, rate: 2, capacity: 1, roundsFull: 7, roundsPartial: 83 };
   const mds = [
     [3n, 1n, 1n],
@@ -219,4 +219,4 @@ should('Poseidon validators reject odd roundsFull', () => {
   throws(() => starknet.poseidonBasic(opts, mds), RangeError);
 });
 
-should.runWhen(import.meta.url);
+it.runWhen(import.meta.url);
