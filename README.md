@@ -163,7 +163,7 @@ The library has been audited:
 
 ## Speed
 
-> `npm run bench`
+> `npm run benchmark`
 
 Benchmark results on Apple M4:
 
@@ -172,13 +172,6 @@ pedersen x 1,131 ops/sec @ 883μs/op
 poseidon x 10,916 ops/sec @ 91μs/op
 verify x 820 ops/sec @ 1ms/op
 ```
-
-## Contributing & testing
-
-1. Clone the repository
-2. `npm install` to install build dependencies like TypeScript
-3. `npm run build` to compile TypeScript code
-4. `npm run test` will execute all main tests
 
 ## Resources
 
