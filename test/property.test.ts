@@ -1,5 +1,5 @@
 import { describe, it } from '@paulmillr/jsbt/test.js';
-import * as fc from 'fast-check';
+import * as fc from '@paulmillr/jsbt/random.js';
 import { deepStrictEqual } from 'node:assert';
 import * as starknet from '../index.js';
 
